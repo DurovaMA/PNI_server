@@ -1,5 +1,5 @@
 from app.db.client.client import PostgreSQLConnection
-#from app.db.interaction import func_sql
+from app.db.interaction import func_sql
 from app.db.exceptions import ParametrNotFoundException, UserNotFoundException, ModelProblems
 from app.db.models.models import Base, User, Parametr, Environment
 import psycopg2
