@@ -1,5 +1,5 @@
 ----Отображение переменных доступных потоку
-drop FUNCTION public.return_avail_env(env integer);
+--drop FUNCTION public.return_avail_env(env integer);
 CREATE OR REPLACE FUNCTION public.return_avail_env(env integer)
  RETURNS TABLE(par_id integer, par_title character varying, par_symbol character varying, 
  par_units character varying)
@@ -37,7 +37,7 @@ $function$;
 COMMENT ON FUNCTION public.create_model(varchar, varchar) IS 
 'Создает пустую модель с названием и описанием. 
 Возвращает номер модели в таблице create_model';
-select create_model('Насос', 'повышает давление');
+--select create_model('Насос', 'повышает давление');
 
 ----создание группы параметра 
 CREATE OR REPLACE FUNCTION public.create_group
@@ -57,7 +57,7 @@ $function$;
 COMMENT ON FUNCTION public.create_group(types_group,  int) IS 
 'Создает новую группу параметра. Принимает номер модели и тип группы.
 Возвращает номер группы';
-drop function public.create_group(types_group,  int);
+--drop function public.create_group(types_group,  int);
 
 
 ----добавление дополнительного параметра или параметра по умолчанию
@@ -205,7 +205,7 @@ COMMENT ON FUNCTION public.add_params_from_flow(int4, int4)
 IS 'Вставляет в таблицу параметров модели все переменные, 
 которые есть в этой модели от среды. Принимает номер модели и номер потока. 
 Возвращает список вставленных переменных';
-select add_params_from_flow (56, 144);
+--select add_params_from_flow (56, 144);
 
 
 CREATE OR REPLACE FUNCTION public.insert_calc_param
@@ -244,7 +244,7 @@ COMMENT ON FUNCTION public.insert_calc_param
 (model int, p_name character varying, calc int, group_id int)
 IS 'Создает связь между параметром расчета и группой, 
 помечая его как требуемый для расчета или рассчитываемый';
-drop function insert_calc_param( int,  character varying ,  int,  int);
+--drop function insert_calc_param( int,  character varying ,  int,  int);
 
 CREATE OR REPLACE FUNCTION public.add_calculation
 (model_id integer, order_c integer, expres character varying)
@@ -284,8 +284,8 @@ join parametr_group pg  on gp.id =pg.group_fk
 join all_inclusions ai on pg.id =ai.param_group_fk 
 join param_of_model pom on pom.id =ai.param_of_model_fk ;
 --------------------------------------------------------
-drop view show_calc_defined;
-select * from show_calc_defined; where c_id=11;
+--drop view show_calc_defined;
+--select * from show_calc_defined; where c_id=11;
 
 
 --представление для отображения данных о выражении: определяемая переменная
@@ -298,8 +298,8 @@ join parametr_group pg  on gp.id =pg.group_fk
 join all_inclusions ai on pg.id =ai.param_group_fk 
 join param_of_model pom on pom.id =ai.param_of_model_fk ;
 --------------------------------------------------------
-drop view show_calc_required;
-select * from show_calc_required where c_id=11;
+--drop view show_calc_required;
+--select * from show_calc_required where c_id=11;
 
 
 --представление: данные о параметрах для вывода в json
@@ -311,8 +311,8 @@ join parametr_group pg on ai.param_group_fk=pg.id
 join group_par gp on gp.id =pg.group_fk 
 join parametr p on p.id =pg.param_fk;
 --------------------------------------------------------
-drop view show_parameters_info;
-select * from show_parameters_info where id=87;
+--drop view show_parameters_info;
+--select * from show_parameters_info where id=87;
 
 --представление: параметры удаляемой модели, которые тоже надо удалить
 create view param_to_delete as
@@ -320,9 +320,10 @@ select p.id p_id, gp.model_fk model from group_par gp
 join parametr_group pg on gp.id =pg.group_fk
 join parametr p on p.id =pg.param_fk 
 where param_type!='base';
-drop view param_to_delete;
 --------------------------------------------------------
-drop view show_parameters_info;
+--drop view param_to_delete;
+--------------------------------------------------------
+/*drop view show_parameters_info;
 delete from parametr where 
 id in (select p_id from param_to_delete where 
-	param_to_delete.model =33) returning *;
+	param_to_delete.model =33) returning *;*/
