@@ -1,4 +1,5 @@
 from app.db.client.client import PostgreSQLConnection
+#from app.db.interaction import func_sql
 from app.db.exceptions import ParametrNotFoundException, UserNotFoundException, ModelProblems
 from app.db.models.models import Base, User, Parametr, Environment
 import psycopg2
@@ -19,23 +20,6 @@ class DbInteraction:
 
         self.engine = self.postgresql_connection.connection.engine
 
-    # def create_table_users(self):
-    #    Base.metadata.tables['users'].create(self.engine)
-
-    # def add_user_info(self, username, email, password):
-    #    user = User(
-    #        username=username,
-    #        password=password,
-    #        email=email
-    #    )
-    #    try:
-    #        self.postgresql_connection.session.add(user)
-    #    except:
-    #        self.postgresql_connection.session.rollback()
-    #        raise
-    #    else:
-    #        self.postgresql_connection.session.commit()
-    #    return self.get_user_info(username)
 
     def add_param_info(self, parametr_id, title, symbol, unit, type):
         param = Parametr(
@@ -53,14 +37,6 @@ class DbInteraction:
         else:
             self.postgresql_connection.session.commit()
         return self.get_parametr_info(parametr_id)
-
-    # def get_user_info(self, username):
-    #     user = self.postgresql_connection.session.query(User).filter_by(username=username).first()
-    #     if user:
-    #         self.postgresql_connection.session.expire_all()
-    #         return {'username': user.username, 'email': user.email, 'password': user.password}
-    #     else:
-    #         raise UserNotFoundException('User not found!')
 
     def get_parametr_info(self, parametr_id):
         par = self.postgresql_connection.session.query(Parametr).filter_by(id=parametr_id).first()
@@ -89,20 +65,6 @@ class DbInteraction:
             return self.get_parametr_info(parametr_id if new_parametrid is None else new_parametrid)
         else:
             raise ParametrNotFoundException('Parameter not found!')
-
-
-#######     Возврат всех доступных сред
-
-# def get_envs_info(self):
-#    envs = self.postgresql_connection.session.query(Environment).all()
-#    list = []
-#    for e in envs:
-#        list.append({'id': e.id, 'type_of_environment': e.type_of_environment})
-#    self.postgresql_connection.session.expire_all()
-#    if list:
-#        return list
-#    else:
-#        raise ParametrNotFoundException('Environments not found!')
 
 
 class DbConnection:
@@ -160,11 +122,15 @@ class DbConnection:
         with self.connection.cursor() as cursor:
             cursor.execute(qry)
             models = cursor.fetchall()
-
         description_list = []
+        problem_list = []
+
+        if len(models) == 0:
+            problem_list.append("Моделей в базе нет")
         for m in models:
+            problem_text = ""
             print(m)
-            id =  m[0]
+            id = m[0]
             title = m[1]
             description = m[2]
             input_flows = m[4]
@@ -179,53 +145,53 @@ class DbConnection:
             expressions_text = []
             default_params_list = []
 
-            try:
+
+            if input_flows == None:
+                problem_text += ("\n Словарь %s из модели номер %d пуст" % ("input_flows", id))
+            else:
                 for i_f in input_flows:
                     qry = f"""select * from flow where id={i_f};"""
                     with self.connection.cursor() as cursor:
-                        try:
-                            cursor.execute(qry)
-                            flow_info = cursor.fetchall()[0]
-                        except Exception:
-                            raise ModelProblems("Данные для входного потока %s из модели номер %d не найдены" % (i_f, id))
+                        cursor.execute(qry)
+                        flow_info = cursor.fetchall()[0]
+                        if flow_info == None:
+                            problem_text += ("\nДанные для входного потока %s из модели номер %d не найдены" % (i_f, id))
                         else:
                             try:
                                 dict_all = {'id': flow_info[0], 'FlowVariableIndex': flow_info[1], 'FlowEnviroment': flow_info[3]}
                             except Exception:
-                                raise ModelProblems("Ошибка индекса для %s из модели номер %d " % (flow_info, id))
+                                problem_text += ("\n Ошибка индекса для %s из модели номер %d " % (flow_info, id))
                             else:
                                 input_flows_list.append(dict_all)
-            except TypeError:
-                raise ModelProblems("Словарь %s из модели номер %d пуст" % ("input_flows", id))
 
-            try:
+            if output_flows == None:
+                problem_text += ("\nСловарь %s из модели номер %d пуст" % ("output_flows", id))
+            else:
                 for o_f in output_flows:
                     qry = f"""select * from flow where id={o_f};"""
                     with self.connection.cursor() as cursor:
-                        try:
-                            cursor.execute(qry)
-                            flow_info = cursor.fetchall()[0]
-                        except Exception:
-                            raise ModelProblems("Данные для выходного потока %s из модели номер %d не найдены" % (o_f, id))
+                        cursor.execute(qry)
+                        flow_info = cursor.fetchall()[0]
+                        if flow_info == None:
+                            problem_text += ("\nДанные для выходного потока %s из модели номер %d не найдены" % (o_f, id))
                         else:
                             try:
                                 dict_all = {'id': flow_info[0], 'FlowVariableIndex': flow_info[1], 'FlowEnviroment': flow_info[3]}
                             except Exception:
-                                raise ModelProblems("Ошибка индекса для %s из модели номер %d " % (flow_info, id))
+                                problem_text += ("\nОшибка индекса для %s из модели номер %d " % (flow_info, id))
                             else:
                                 output_flows_list.append(dict_all)
-            except TypeError:
-                raise ModelProblems("Словарь %s из модели номер %d пуст" % ("input_flows", id))
 
-            try:
+            if all_params == None:
+                problem_text += ("\nСловарь %s из модели номер %d пуст" % ("all_params", id))
+            else:
                 for p in all_params:
                     qry = f"""select * from show_parameters_info where id={p};"""
                     with self.connection.cursor() as cursor:
-                        try:
-                            cursor.execute(qry)
-                            param_info = cursor.fetchall()[0]
-                        except Exception:
-                            raise ModelProblems("Данные для параметра %s из модели номер %d не найдены" % (p, id))
+                        cursor.execute(qry)
+                        param_info = cursor.fetchall()[0]
+                        if param_info == None:
+                            problem_text += ("Данные для параметра %s из модели номер %d не найдены" % (p, id))
                         else:
                             try:
                                 dict_all = {'id': param_info[0], 'name': param_info[1], 'value': param_info[2],
@@ -234,18 +200,17 @@ class DbConnection:
                                 raise ModelProblems("Ошибка индекса для %s из модели номер %d " % (param_info, id))
                             else:
                                 all_params_list.append(dict_all)
-            except TypeError:
-                raise ModelProblems("Словарь %s из модели номер %d пуст" % ("all_params", id))
 
-            try:
+            if default_params == None:
+                problem_text += ("\nСловарь %s из модели номер %d пуст" % ("default_params_list", id))
+            else:
                 for d_p in default_params:
                     qry = f"""select * from show_parameters_info where id={d_p};"""
                     with self.connection.cursor() as cursor:
-                        try:
-                            cursor.execute(qry)
-                            param_info = cursor.fetchall()[0]
-                        except Exception:
-                            raise ModelProblems("Данные для параметра по умолчанию %s из модели номер %d не найдены" % (d_p, id))
+                        cursor.execute(qry)
+                        param_info = cursor.fetchall()[0]
+                        if param_info == None:
+                            problem_text += ("Данные для параметра %s из модели номер %d не найдены" % (d_p, id))
                         else:
                             try:
                                 dict_all = {'id': param_info[0], 'name': param_info[1], 'value': param_info[2],
@@ -254,18 +219,17 @@ class DbConnection:
                                 raise ModelProblems("Ошибка индекса для %s из модели номер %d " % (param_info, id))
                             else:
                                 default_params_list.append(dict_all)
-            except TypeError:
-                ModelProblems("Словарь %s из модели номер %d пуст" % ("default_params_list", id))
 
-            try:
+            if expressions == None:
+                problem_text += ("\nСловарь %s из модели номер %d пуст" % ("expressions", id))
+            else:
                 for e in expressions:
                     qry = f"""select * from calculation where id={e};"""
                     with self.connection.cursor() as cursor:
-                        try:
-                            cursor.execute(qry)
-                            e_info = cursor.fetchall()[0]
-                        except Exception:
-                            raise ModelProblems("Данные для расчетного выражения %s из модели номер %d не найдены" % (e, id))
+                        cursor.execute(qry)
+                        e_info = cursor.fetchall()[0]
+                        if e_info == None:
+                            problem_text += ("\nДанные для расчетного выражения %s из модели номер %d не найдены" % (e, id))
                         else:
                             try:
                                 dict_all = {'id': e_info[0], 'Order': e_info[1], 'Expression': e_info[2],
@@ -274,20 +238,23 @@ class DbConnection:
                                 raise ModelProblems("Ошибка индекса для %s из модели номер %d " % (e_info, id))
                             else:
                                 expressions_text.append(dict_all)
-            except TypeError:
-                ModelProblems("Словарь %s из модели номер %d пуст" % ("expressions_text", id))
+            if ((input_flows ==None) or (output_flows ==None) or (default_params_list ==None)
+                or (all_params_list ==None) or (expressions_text ==None)):
+                problem_text += ("\nМодель номер %d не будет отображена\n" % id)
+            else:
+                model_desc = {'Id': id, 'Title': title, 'Description': description,
+                                         'InputFlows': input_flows_list, 'OutputFlows': output_flows_list,
+                                         'DefaultParameters': default_params_list, 'AllParameters': all_params_list,
+                                         'Expressions': expressions_text}
+                description_list.append(model_desc)
 
-            try:
-                description_list.append({'id': id, 'title': title, 'description': description,
-                                         'input_flows': input_flows, 'output_flows': output_flows,
-                                         'default_params': default_params_list, 'all_params': all_params_list,
-                                         'expressions': expressions_text})
-            except Exception:
-                ModelProblems("Совсем плохо")
-        if description_list:
-            return description_list
-        else:
-            raise ParametrNotFoundException('Environments not found!')
+
+            problem_list.append(problem_text)
+
+        print('\n'.join(map(str, problem_list)))
+        return description_list
+
+
 
     def create_model(self, model_description, model_title, in_flows, out_flows, default_params, extra_params, calculations,
                      model_id=None):
@@ -298,66 +265,19 @@ class DbConnection:
         print(default_params)
         print(extra_params)
         print(calculations)
-        # создание записи о новой модели
-        qry = f"""select create_model('{model_title}', '{model_description}');"""
-        with self.connection.cursor() as cursor:
-            cursor.execute(qry)
-            id_model = cursor.fetchall()[0][0]
 
-        # создание группы ДОПОЛНИТЕЛЬНЫХ параметров
-        qry = f"""select create_group('extra_params', {id_model});"""
-        with self.connection.cursor() as cursor:
-            cursor.execute(qry)
-            id_group_extr = cursor.fetchall()[0][0]
 
-        id_extra_params_list = []
-        # запись ДОПОЛНИТЕЛЬНЫХ параметров в созданную группу
-        for cur_param in extra_params:
-            print(extra_params)
-            qry = f"""select add_extra_def_param(
-                {id_model}, {id_group_extr}, 'extra', '{cur_param['Title']}', '{cur_param['Symbol']}', '{cur_param['Units']}');"""
-            with self.connection.cursor() as cursor:
-                cursor.execute(qry)
-                id_extra_params_list.append(cursor.fetchall()[0][0])
 
-        # создание группы параметров ПО УМОЛЧАНИЮ
-        qry = f"""select create_group('default_params', {id_model});"""
-        with self.connection.cursor() as cursor:
-            cursor.execute(qry)
-            id_group_def = cursor.fetchall()[0][0]
+        id_model = func_sql.create_new_model(model_title, model_description, self.connection)
 
-        id_default_params_list = []
-        # запись параметров ПО УМОЛЧАНИЮ в созданную группу
-        for cur_param in default_params:
-            print(default_params)
-            qry = f"""select add_extra_def_param(
-                {id_model}, {id_group_def}, 'default', '{cur_param['Title']}', '{cur_param['Symbol']}', '{cur_param['Units']}');"""
-            print(qry)
-            with self.connection.cursor() as cursor:
-                cursor.execute(qry)
-                id_default_params_list.append(cursor.fetchall()[0][0])
+        id_group_extr, id_extra_params_list = func_sql.add_extra_def_params('extra_params', 'extra', id_model, extra_params, self.connection)
+        id_group_def, id_default_params_list = func_sql.add_extra_def_params('default_params', 'default', id_model, extra_params, self.connection)
 
-        flows_model = []
-        id_flows_model_input = []
-        # внесение в список потоков входных
-        for cur_flow in in_flows:
-            qry = f"""select add_input_flow(
-                {id_model}, '{cur_flow['FlowVariableIndex']}', {cur_flow['FlowEnviroment']});"""
-            with self.connection.cursor() as cursor:
-                cursor.execute(qry)
-                id_flow = cursor.fetchall()[0][0]
-                id_flows_model_input.append(id_flow)
-        flows_model = flows_model + id_flows_model_input
+        id_flows_model_input = func_sql.add_flow(id_model, 'input', in_flows, self.connection)
+        id_flows_model_output = func_sql.add_flow(id_model, 'output', in_flows, self.connection)
 
-        id_flows_model_output = []
-        # внесение в список потоков выходных
-        for cur_flow in out_flows:
-            qry = f"""select add_output_flow({id_model}, '{cur_flow['FlowVariableIndex']}', {cur_flow['FlowEnviroment']});"""
-            with self.connection.cursor() as cursor:
-                cursor.execute(qry)
-                id_flow = cursor.fetchall()[0][0]
-                id_flows_model_output.append(id_flow)
-        flows_model = flows_model + id_flows_model_output
+        flows_model = id_flows_model_input + id_flows_model_output
+
 
         id_flow_params_list = []
         # запись в модель переменных от всех потоков
