@@ -271,22 +271,21 @@ class DbConnection:
         id_model = func_sql.create_new_model(model_title, model_description, self.connection)
 
         id_group_extr, id_extra_params_list = func_sql.add_extra_def_params('extra_params', 'extra', id_model, extra_params, self.connection)
-        id_group_def, id_default_params_list = func_sql.add_extra_def_params('default_params', 'default', id_model, extra_params, self.connection)
+        id_group_def, id_default_params_list = func_sql.add_extra_def_params('default_params', 'default', id_model, default_params, self.connection)
 
         id_flows_model_input = func_sql.add_flow(id_model, 'input', in_flows, self.connection)
-        id_flows_model_output = func_sql.add_flow(id_model, 'output', in_flows, self.connection)
+        id_flows_model_output = func_sql.add_flow(id_model, 'output', out_flows, self.connection)
 
         flows_model = id_flows_model_input + id_flows_model_output
 
 
         id_flow_params_list = []
         # запись в модель переменных от всех потоков
+
+
         for flow in flows_model:
-            qry = f"""select add_params_from_flow({id_model}, {flow});"""
-            with self.connection.cursor() as cursor:
-                cursor.execute(qry)
-                id_flow_params = cursor.fetchall()[0][0]
-                id_flow_params_list = id_flow_params_list + id_flow_params
+            id_flow_params = func_sql.add_params_from_flow(id_model, flow, self.connection)
+            id_flow_params_list = id_flow_params_list + id_flow_params
 
         id_calcs_list = []
         for calculation in calculations:
@@ -298,13 +297,13 @@ class DbConnection:
             with self.connection.cursor() as cursor:
                 cursor.execute(qry)
                 id_calc = cursor.fetchall()[0][0]
-                id_calcs_list.append(id_calc)
+            id_calcs_list.append(id_calc)
             qry2 = f"""select defined_param_fk, required_params_fk from calculation c where id={id_calc};"""
             with self.connection.cursor() as cursor:
                 cursor.execute(qry2)
                 params = cursor.fetchall()[0]
-                required_params_group = params[1]
-                defined_params_group = params[0]
+            required_params_group = params[1]
+            defined_params_group = params[0]
 
 
             qry3 = f"""select insert_calc_param({id_model}, '{defined_param}', {id_calc}, {defined_params_group});"""

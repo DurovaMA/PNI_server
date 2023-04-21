@@ -48,7 +48,50 @@ def add_flow(model, flow_type, flows, con):
             id_flows_model.append(id_flow)
     return id_flows_model
 
+def add_params_from_flow(mod_id, flow_id, con):
+    problem_text = ""
+    qry1 = f"""select  model, param_name, pg_id from param_of_flow where model={mod_id} and flow={flow_id};"""
+    with con.cursor() as cursor:
+        cursor.execute(qry1)
+        param_to_insert = cursor.fetchall()
+        if param_to_insert == None:
+            problem_text += ("\nВ потоке %s для модели %d не найдены параметры" % (flow_id, mod_id))
+        else:
+            pg_list = []
+            pom_inserted_list = []
+            for param in param_to_insert:
+                model = param[0]
+                param_name = param[1]
+                pg_id = param[2]
+                p_dict = {"model": model, "param_name": param_name, "pg_id": pg_id}
+                qry2 = f"""insert into param_of_model ( model_fk, param_name) values ({model},'{param_name}') RETURNING  *;"""
+                with con.cursor() as cursor:
+                    cursor.execute(qry2)
+                    pom_inserted = cursor.fetchall()
+                if pom_inserted == None:
+                    problem_text += ("\nВ модели %s не удалось вставить параметр %d" % (model, param_name))
+                else:
+                    pom_id = pom_inserted[0][0]
+                    p_dict['pom_id'] = pom_id
+                pg_list.append(p_dict)
 
+            for ins in pg_list:
+                param_group_fk = ins["pg_id"]
+                param_of_model_fk = ins["pom_id"]
+                qry3 = f"""insert into all_inclusions ( param_group_fk, param_of_model_fk)  values ({param_group_fk},'{param_of_model_fk}') RETURNING  *;"""
+                with con.cursor() as cursor:
+                    cursor.execute(qry3)
+                    ai_inserted = cursor.fetchall()[0][2]
+                if ai_inserted == None:
+                    problem_text += ("\nВ модели %s не удалось вставить параметр %d" % (model, param_name))
+                else:
+                    pom_inserted_list.append(ai_inserted)
+            print(pg_list,pom_inserted_list)
+
+    if pom_inserted_list:
+        return pom_inserted_list
+    else:
+        print('problem')
 
 from app.db.client.client import PostgreSQLConnection
 from app.db.interaction import func_sql
@@ -66,45 +109,48 @@ class DbConnection:
         )
         self.connection.autocommit = True
 
-    def add_params_from_flow(self, mod_id, flow_id):
+    def add_params_from_flow(self, mod_id, flow_id, con):
         problem_text = ""
         qry1 = f"""select  model, param_name, pg_id from param_of_flow where model={mod_id} and flow={flow_id};"""
-        with self.connection.cursor() as cursor:
+        with con.cursor() as cursor:
             cursor.execute(qry1)
             param_to_insert = cursor.fetchall()
             if param_to_insert == None:
                 problem_text += ("\nВ потоке %s для модели %d не найдены параметры" % (flow_id, mod_id))
             else:
-                pg_list = {}
+                pg_list = []
                 pom_inserted_list = []
-                p_num = 0
                 for param in param_to_insert:
-                    p_num += 1
                     model = param[0]
                     param_name = param[1]
                     pg_id = param[2]
-                    list_p_num = []
-                    pg_list[p_num] = {"model": model, "param_name": param_name, "pg_id": pg_id}
-                    ##теперь в pg_list список словарей - аналог таблицы pom_inserted
+                    p_dict = {"model": model, "param_name": param_name, "pg_id": pg_id}
                     qry2 = f"""insert into param_of_model ( model_fk, param_name) values ({model},'{param_name}') RETURNING  *;"""
-                    with self.connection.cursor() as cursor:
+                    with con.cursor() as cursor:
                         cursor.execute(qry2)
                         pom_inserted = cursor.fetchall()
-                        if pom_inserted == None:
-                            problem_text += ("\nВ модели %s не удалось вставить параметр %d" % (model, param_name))
-                        else:
+                    if pom_inserted == None:
+                        problem_text += ("\nВ модели %s не удалось вставить параметр %d" % (model, param_name))
+                    else:
+                        pom_id = pom_inserted[0][0]
+                        p_dict['pom_id'] = pom_id
+                    pg_list.append(p_dict)
 
-                            for pom in pom_inserted:
-                                pom_id = pom[0]
-                                model_id = param[1]
-                                param_name = param[2]
-                                pg_list[p_num]
-                                pom_inserted_list.append({"pom_id": pom_id, "model_id": model_id, "param_name": param_name})
-                                ##теперь в pom_inserted_list список словарей - аналог таблицы temp_pom_inserted
+                for ins in pg_list:
+                    param_group_fk = ins["pg_id"]
+                    param_of_model_fk = ins["pom_id"]
+                    qry3 = f"""insert into all_inclusions ( param_group_fk, param_of_model_fk)  values ({param_group_fk},'{param_of_model_fk}') RETURNING  *;"""
+                    with con.cursor() as cursor:
+                        cursor.execute(qry3)
+                        ai_inserted = cursor.fetchall()[0][2]
+                    if ai_inserted == None:
+                        problem_text += ("\nВ модели %s не удалось вставить параметр %d" % (model, param_name))
+                    else:
+                        pom_inserted_list.append(ai_inserted)
                 print(pg_list,pom_inserted_list)
 
-        if param_to_insert:
-            return param_to_insert
+        if pom_inserted_list:
+            return pom_inserted_list
         else:
             print('problem')
 
@@ -116,4 +162,4 @@ if __name__ == '__main__':
         password="root",
         database="PNI3_v7"
     )
-    v = db2.add_params_from_flow(44, 111 )
+    v = db2.add_params_from_flow(56, 144 )
