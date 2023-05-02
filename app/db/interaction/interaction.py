@@ -130,79 +130,110 @@ class DbConnection:
         for m in models:
             problem_text = ""
             print(m)
-            id = m[0]
+            model_id = m[0]
             title = m[1]
             description = m[2]
             input_flows = m[4]
             output_flows = m[5]
             default_params = m[6]
-            all_params = m[7]
+            extra_params = m[7]
             expressions = m[8]
 
             input_flows_list = []
             output_flows_list = []
-            all_params_list = []
+            extra_params_list = []
             expressions_text = []
             default_params_list = []
 
 
             if input_flows == None:
-                problem_text += ("\n Словарь %s из модели номер %d пуст" % ("input_flows", id))
+                problem_text += ("\n Словарь %s из модели номер %d пуст" % ("input_flows", model_id))
             else:
                 for i_f in input_flows:
                     qry = f"""select * from flow where id={i_f};"""
                     with self.connection.cursor() as cursor:
                         cursor.execute(qry)
                         flow_info = cursor.fetchall()[0]
-                        if flow_info == None:
-                            problem_text += ("\nДанные для входного потока %s из модели номер %d не найдены" % (i_f, id))
-                        else:
-                            try:
-                                dict_all = {'id': flow_info[0], 'FlowVariableIndex': flow_info[1], 'FlowEnviroment': flow_info[3]}
-                            except Exception:
-                                problem_text += ("\n Ошибка индекса для %s из модели номер %d " % (flow_info, id))
-                            else:
-                                input_flows_list.append(dict_all)
+                    if flow_info == None:
+                        problem_text += ("\nДанные для входного потока %s из модели номер %d не найдены" % (i_f, model_id))
+                    else:
+                        #try:
+                        flow_id = flow_info[0]
+                        FlowVariableIndex = flow_info[1]
+                        qry = f"""select * from param_of_flow_in_model where model={model_id} and FlowId ={i_f};"""
+                        with self.connection.cursor() as cursor:
+                            cursor.execute(qry)
+                            executed_all = cursor.fetchall()
+                        avail_var = []
+                        for executed in executed_all:
+                            FlowVariableId = executed[1]
+                            FlowId = executed[2]
+                            FlowVariableName = executed[3]
+                            VariablePrototype = {'ParametrId': executed[4], 'Title': executed[5],
+                                                 'Symbol': executed[6], 'Units': executed[7]}
+                            avail_var.append({'FlowVariableId': FlowVariableId, 'FlowId': FlowId, 'FlowVariableName': FlowVariableName,
+                                         'VariablePrototype': VariablePrototype})
+                        dict_all = {'AvailableVariables': avail_var,  'FlowVariablesIndex': FlowVariableIndex, 'Flow_id': flow_id }
+                        #except Exception:
+                            #problem_text += ("\n Ошибка индекса для %s из модели номер %d " % (flow_info, model_id))
+                        #else:
+                    input_flows_list.append(dict_all)
 
             if output_flows == None:
-                problem_text += ("\nСловарь %s из модели номер %d пуст" % ("output_flows", id))
+                problem_text += ("\nСловарь %s из модели номер %d пуст" % ("output_flows", model_id))
             else:
                 for o_f in output_flows:
                     qry = f"""select * from flow where id={o_f};"""
                     with self.connection.cursor() as cursor:
                         cursor.execute(qry)
                         flow_info = cursor.fetchall()[0]
-                        if flow_info == None:
-                            problem_text += ("\nДанные для выходного потока %s из модели номер %d не найдены" % (o_f, id))
-                        else:
-                            try:
-                                dict_all = {'id': flow_info[0], 'FlowVariableIndex': flow_info[1], 'FlowEnviroment': flow_info[3]}
-                            except Exception:
-                                problem_text += ("\nОшибка индекса для %s из модели номер %d " % (flow_info, id))
-                            else:
-                                output_flows_list.append(dict_all)
+                    if flow_info == None:
+                        problem_text += (
+                                    "\nДанные для входного потока %s из модели номер %d не найдены" % (o_f, model_id))
+                    else:
+                        # try:
+                        flow_id = flow_info[0]
+                        FlowVariableIndex = flow_info[1]
+                        qry = f"""select * from param_of_flow_in_model where model={model_id} and FlowId ={o_f};"""
+                        with self.connection.cursor() as cursor:
+                            cursor.execute(qry)
+                            executed_all = cursor.fetchall()
+                        required_var = []
+                        count_req = executed_all[0][9]
+                        for executed in executed_all:
+                            FlowVariableId = executed[1]
+                            FlowId = executed[2]
+                            FlowVariableName = executed[3]
+                            VariablePrototype = {'ParametrId': executed[4], 'Title': executed[5],
+                                                 'Symbol': executed[6], 'Units': executed[7]}
+                            required_var.append({'FlowVariableId': FlowVariableId, 'FlowId': FlowId,
+                                              'FlowVariableName': FlowVariableName,
+                                              'VariablePrototype': VariablePrototype})
+                        dict_all = {'RequiredVariables': required_var, 'FlowVariablesIndex': FlowVariableIndex,
+                                    'FlowId': flow_id, 'CountOfMustBeDefinedVars':count_req}
+                    output_flows_list.append(dict_all)
 
-            if all_params == None:
-                problem_text += ("\nСловарь %s из модели номер %d пуст" % ("all_params", id))
+            if extra_params == None:
+                problem_text += ("\nСловарь %s из модели номер %d пуст" % ("all_params", model_id))
             else:
-                for p in all_params:
+                for p in extra_params:
                     qry = f"""select * from show_parameters_info where id={p};"""
                     with self.connection.cursor() as cursor:
                         cursor.execute(qry)
                         param_info = cursor.fetchall()[0]
                         if param_info == None:
-                            problem_text += ("Данные для параметра %s из модели номер %d не найдены" % (p, id))
+                            problem_text += ("Данные для параметра %s из модели номер %d не найдены" % (p, model_id))
                         else:
                             try:
-                                dict_all = {'id': param_info[0], 'name': param_info[1], 'value': param_info[2],
-                                        'title': param_info[3], 'units': param_info[4]}
+                                dict_all = {'ParametrId': param_info[0], 'VariableName': param_info[1],
+                                        'Title': param_info[3], 'Units': param_info[4]}
                             except Exception:
-                                raise ModelProblems("Ошибка индекса для %s из модели номер %d " % (param_info, id))
+                                raise ModelProblems("Ошибка индекса для %s из модели номер %d " % (param_info, model_id))
                             else:
-                                all_params_list.append(dict_all)
+                                extra_params_list.append(dict_all)
 
             if default_params == None:
-                problem_text += ("\nСловарь %s из модели номер %d пуст" % ("default_params_list", id))
+                problem_text += ("\nСловарь %s из модели номер %d пуст" % ("default_params_list", model_id))
             else:
                 for d_p in default_params:
                     qry = f"""select * from show_parameters_info where id={d_p};"""
@@ -210,18 +241,20 @@ class DbConnection:
                         cursor.execute(qry)
                         param_info = cursor.fetchall()[0]
                         if param_info == None:
-                            problem_text += ("Данные для параметра %s из модели номер %d не найдены" % (d_p, id))
+                            problem_text += ("Данные для параметра %s из модели номер %d не найдены" % (d_p, model_id))
                         else:
                             try:
-                                dict_all = {'id': param_info[0], 'name': param_info[1], 'value': param_info[2],
-                                        'title': param_info[3], 'units': param_info[4]}
+                                dict_all = {'ParametrId': param_info[0], 'VariableName': param_info[1],
+                                        'Title': param_info[3], 'Units': param_info[4]}
                             except Exception:
-                                raise ModelProblems("Ошибка индекса для %s из модели номер %d " % (param_info, id))
+                                raise ModelProblems("Ошибка индекса для %s из модели номер %d " % (param_info, model_id))
                             else:
                                 default_params_list.append(dict_all)
 
+
+
             if expressions == None:
-                problem_text += ("\nСловарь %s из модели номер %d пуст" % ("expressions", id))
+                problem_text += ("\nСловарь %s из модели номер %d пуст" % ("expressions", model_id))
             else:
                 for e in expressions:
                     qry = f"""select * from calculation where id={e};"""
@@ -229,22 +262,22 @@ class DbConnection:
                         cursor.execute(qry)
                         e_info = cursor.fetchall()[0]
                         if e_info == None:
-                            problem_text += ("\nДанные для расчетного выражения %s из модели номер %d не найдены" % (e, id))
+                            problem_text += ("\nДанные для расчетного выражения %s из модели номер %d не найдены" % (e, model_id))
                         else:
                             try:
-                                dict_all = {'id': e_info[0], 'Order': e_info[1], 'Expression': e_info[2],
+                                dict_all = {'ExpressionId': e_info[0], 'Order': e_info[1], 'Expression': e_info[2],
                                         'DefinedVariableId': e_info[3], 'NeededVariables': e_info[4]}
                             except Exception:
-                                raise ModelProblems("Ошибка индекса для %s из модели номер %d " % (e_info, id))
+                                raise ModelProblems("Ошибка индекса для %s из модели номер %d " % (e_info, model_id))
                             else:
                                 expressions_text.append(dict_all)
             if ((input_flows ==None) or (output_flows ==None) or (default_params_list ==None)
-                or (all_params_list ==None) or (expressions_text ==None)):
-                problem_text += ("\nМодель номер %d не будет отображена\n" % id)
+                or (extra_params_list ==None) or (expressions_text ==None)):
+                problem_text += ("\nМодель номер %d не будет отображена\n" % model_id)
             else:
-                model_desc = {'Id': id, 'Title': title, 'Description': description,
+                model_desc = {'ModelId': model_id, 'Title': title, 'Description': description,
                                          'InputFlows': input_flows_list, 'OutputFlows': output_flows_list,
-                                         'DefaultParameters': default_params_list, 'AllParameters': all_params_list,
+                                         'DefaultParameters': default_params_list, 'CustomParameters': extra_params_list,
                                          'Expressions': expressions_text}
                 description_list.append(model_desc)
 
@@ -317,15 +350,15 @@ class DbConnection:
                     cursor.fetchall()[0][0]
 
 
-        all_params_list = id_extra_params_list + id_default_params_list + id_flow_params_list
+        #all_params_list = id_extra_params_list + id_default_params_list + id_flow_params_list
         qry = f"""update model_of_block set input_flows=array{id_flows_model_input},
         output_flows=array{id_flows_model_output}, default_params =array{id_default_params_list},
-        all_params =array{all_params_list},  expressions =array{id_calcs_list}
+        extra_params =array{id_extra_params_list},  expressions =array{id_calcs_list}
         where id = {id_model};"""
         with self.connection.cursor() as cursor:
             cursor.execute(qry)
 
-        if all_params_list:
+        if id_extra_params_list and id_default_params_list and id_flow_params_list:
             print('Добавлена модель номер ', id_model)
             return id_model
         else:
