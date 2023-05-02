@@ -44,7 +44,7 @@ CREATE TABLE public.model_of_block (
     input_flows _int4 NULL,
     output_flows _int4 NULL,
     default_params _int4 NULL,
-    all_params _int4 NULL,
+    extra_params _int4 NULL,
     expressions _int4 NULL,
     CONSTRAINT model_of_block_pk PRIMARY KEY (id)
 );

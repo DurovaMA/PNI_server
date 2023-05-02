@@ -327,3 +327,24 @@ where param_type!='base';
 delete from parametr where 
 id in (select p_id from param_to_delete where 
 	param_to_delete.model =33) returning *;*/
+
+
+CREATE OR REPLACE VIEW public.param_of_flow_in_model
+AS SELECT pom.model_fk AS model,
+    pom.id AS flowvariableid,
+    flow.id AS flowid,
+    pom.param_name AS flowvariablename,
+    p.id,
+    p.title,
+    p.symbol,
+    p.units,
+    p.param_type,
+    flow.count_params_out AS count_of_def
+   FROM param_of_model pom
+     JOIN all_inclusions ai ON pom.id = ai.param_of_model_fk
+     JOIN parametr_group pg ON pg.id = ai.param_group_fk
+     JOIN group_environment ge ON ge.group_fk = pg.group_fk
+     JOIN environment e ON e.id = ge.enviroment_fk
+     JOIN flow ON flow.enviroment_fk = e.id
+     JOIN parametr p ON p.id = pg.param_fk
+  WHERE pom.param_name::text = (p.symbol::text || flow.param_index::text);
