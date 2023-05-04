@@ -14,6 +14,9 @@ DROP TYPE public."types_flow";
 DROP TYPE public."types_params";
 DROP TYPE public."types_status";
 
+call inicialize_db();
+
+
 CREATE TYPE public."types_group" AS ENUM (
 	'avail_for_env',
 	'required_for_output',
