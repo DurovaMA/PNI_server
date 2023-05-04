@@ -126,23 +126,27 @@ def add_calc(mod_id, calc_list, con):
     return id_list
 
 
-def show_flows(mod_id, type, flow_list, con):
+def show_flows(mod_id, type, flows, con):
     """Отображает список потоков для JSON. Принимает номер модели, тип потока ("input" или "output") массив записей о
     выражениях и соединение с БД. Возвращает массив идентификаторов вставленных выражений """
-    problem_text = ""
-    flows_list = []
-    if flow_list is None:
-        problem_text += ("\n Словарь потоков типа %s из модели номер %d пуст" % (type, mod_id))
+    problem_flow_text = ""
+    id_flows_list = []
+    flag = False # поднимается если ошибка критическая для модели
+    if (flows is None) or (len(flows) == 0):
+        problem_flow_text += ("\nСловарь потоков типа %s из модели номер %d пуст" % (type, mod_id))
+        flag = True
     else:
-        for f_id in flow_list:
+        for f_id in flows:
             qry = f"""select * from flow where id={f_id};"""
             with con.cursor() as cursor:
                 cursor.execute(qry)
-                flow_info = cursor.fetchall()[0]
-            if flow_info is None:
-                problem_text += (
+                flow_inf = cursor.fetchall()
+            if len(flow_inf) == 0:
+                problem_flow_text += (
                         "\nДанные для потока %s из модели номер %d не найдены" % (f_id, mod_id))
+                flag = True
             else:
+                flow_info = flow_inf[0]
                 flow_id = flow_info[0]
                 flow_variable_index = flow_info[1]
                 qry = f"""select * from param_of_flow_in_model where model={mod_id} and FlowId ={f_id};"""
@@ -163,30 +167,34 @@ def show_flows(mod_id, type, flow_list, con):
                                       'VariablePrototype': variable_prototype})
                 if type == "input":
                     dict_all = {'AvailableVariables': vars_desc, 'FlowVariablesIndex': flow_variable_index,
-                            'Flow_id': flow_id}
+                                'Flow_id': flow_id}
                 elif type == "output":
                     dict_all = {'RequiredVariables': vars_desc, 'FlowVariablesIndex': flow_variable_index,
                                 'FlowId': flow_id, 'CountOfMustBeDefinedVars': count_req}
-                flows_list.append(dict_all)
-        return flows_list
+                id_flows_list.append(dict_all)
+    return id_flows_list, problem_flow_text, flag
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+def show_extra_default_params(mod_id, type, params, con):
+    id_params_list = []
+    problem_param_text = ""
+    flag = False # поднимается если ошибка критическая для модели
+    if (params is None) or (len(params) == 0):
+        problem_param_text += ("\nСловарь параметров типа %s из модели номер %d пуст" % (type, mod_id))
+    else:
+        for p in params:
+            qry = f"""select * from show_parameters_info where id={p};"""
+            with con.cursor() as cursor:
+                cursor.execute(qry)
+                result_sql = cursor.fetchall()
+                if (result_sql is None) or (len(result_sql) == 0):
+                    problem_param_text += ("Данные для параметра %s из модели номер %d не найдены" % (p, mod_id))
+                    flag = True
+                else:
+                    param_info = result_sql[0]
+                    dict_all = {'ParametrId': param_info[0], 'VariableName': param_info[1],
+                                'Title': param_info[3], 'Units': param_info[4]}
+                    id_params_list.append(dict_all)
+    return id_params_list, problem_param_text, flag
 
 from app.db.client.client import PostgreSQLConnection
 from app.db.interaction import func_sql
