@@ -126,6 +126,68 @@ def add_calc(mod_id, calc_list, con):
     return id_list
 
 
+def show_flows(mod_id, type, flow_list, con):
+    """Отображает список потоков для JSON. Принимает номер модели, тип потока ("input" или "output") массив записей о
+    выражениях и соединение с БД. Возвращает массив идентификаторов вставленных выражений """
+    problem_text = ""
+    flows_list = []
+    if flow_list is None:
+        problem_text += ("\n Словарь потоков типа %s из модели номер %d пуст" % (type, mod_id))
+    else:
+        for f_id in flow_list:
+            qry = f"""select * from flow where id={f_id};"""
+            with con.cursor() as cursor:
+                cursor.execute(qry)
+                flow_info = cursor.fetchall()[0]
+            if flow_info is None:
+                problem_text += (
+                        "\nДанные для потока %s из модели номер %d не найдены" % (f_id, mod_id))
+            else:
+                flow_id = flow_info[0]
+                flow_variable_index = flow_info[1]
+                qry = f"""select * from param_of_flow_in_model where model={mod_id} and FlowId ={f_id};"""
+                with con.cursor() as cursor:
+                    cursor.execute(qry)
+                    executed_all = cursor.fetchall()
+                if type == "output":
+                    count_req = executed_all[0][9]
+                vars_desc = []
+                for executed in executed_all:
+                    flow_variable_id = executed[1]
+                    flow_id = executed[2]
+                    flow_variable_name = executed[3]
+                    variable_prototype = {'ParametrId': executed[4], 'Title': executed[5],
+                                          'Symbol': executed[6], 'Units': executed[7]}
+                    vars_desc.append({'FlowVariableId': flow_variable_id, 'FlowId': flow_id,
+                                      'FlowVariableName': flow_variable_name,
+                                      'VariablePrototype': variable_prototype})
+                if type == "input":
+                    dict_all = {'AvailableVariables': vars_desc, 'FlowVariablesIndex': flow_variable_index,
+                            'Flow_id': flow_id}
+                elif type == "output":
+                    dict_all = {'RequiredVariables': vars_desc, 'FlowVariablesIndex': flow_variable_index,
+                                'FlowId': flow_id, 'CountOfMustBeDefinedVars': count_req}
+                flows_list.append(dict_all)
+        return flows_list
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 from app.db.client.client import PostgreSQLConnection
 from app.db.interaction import func_sql
 from app.db.exceptions import ParametrNotFoundException, UserNotFoundException, ModelProblems

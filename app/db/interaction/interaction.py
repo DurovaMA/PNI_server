@@ -41,71 +41,8 @@ class DbConnection:
             expressions_text = []
             default_params_list = []
 
-            if input_flows is None:
-                problem_text += ("\n Словарь %s из модели номер %d пуст" % ("input_flows", model_id))
-            else:
-                for i_f in input_flows:
-                    qry = f"""select * from flow where id={i_f};"""
-                    with self.connection.cursor() as cursor:
-                        cursor.execute(qry)
-                        flow_info = cursor.fetchall()[0]
-                    if flow_info is None:
-                        problem_text += (
-                                "\nДанные для входного потока %s из модели номер %d не найдены" % (i_f, model_id))
-                    else:
-                        flow_id = flow_info[0]
-                        flow_variable_index = flow_info[1]
-                        qry = f"""select * from param_of_flow_in_model where model={model_id} and FlowId ={i_f};"""
-                        with self.connection.cursor() as cursor:
-                            cursor.execute(qry)
-                            executed_all = cursor.fetchall()
-                        avail_var = []
-                        for executed in executed_all:
-                            flow_variable_id = executed[1]
-                            flow_id = executed[2]
-                            flow_variable_name = executed[3]
-                            variable_prototype = {'ParametrId': executed[4], 'Title': executed[5],
-                                                  'Symbol': executed[6], 'Units': executed[7]}
-                            avail_var.append({'FlowVariableId': flow_variable_id, 'FlowId': flow_id,
-                                              'FlowVariableName': flow_variable_name,
-                                              'VariablePrototype': variable_prototype})
-                        dict_all = {'AvailableVariables': avail_var, 'FlowVariablesIndex': flow_variable_index,
-                                    'Flow_id': flow_id}
-                        input_flows_list.append(dict_all)
-
-            if output_flows is None:
-                problem_text += ("\nСловарь %s из модели номер %d пуст" % ("output_flows", model_id))
-            else:
-                for o_f in output_flows:
-                    qry = f"""select * from flow where id={o_f};"""
-                    with self.connection.cursor() as cursor:
-                        cursor.execute(qry)
-                        flow_info = cursor.fetchall()[0]
-                    if flow_info is None:
-                        problem_text += (
-                                "\nДанные для входного потока %s из модели номер %d не найдены" % (o_f, model_id))
-                    else:
-                        # try:
-                        flow_id = flow_info[0]
-                        flow_variable_index = flow_info[1]
-                        qry = f"""select * from param_of_flow_in_model where model={model_id} and FlowId ={o_f};"""
-                        with self.connection.cursor() as cursor:
-                            cursor.execute(qry)
-                            executed_all = cursor.fetchall()
-                        required_var = []
-                        count_req = executed_all[0][9]
-                        for executed in executed_all:
-                            flow_variable_id = executed[1]
-                            flow_id = executed[2]
-                            flow_variable_name = executed[3]
-                            variable_prototype = {'ParametrId': executed[4], 'Title': executed[5],
-                                                  'Symbol': executed[6], 'Units': executed[7]}
-                            required_var.append({'FlowVariableId': flow_variable_id, 'FlowId': flow_id,
-                                                 'FlowVariableName': flow_variable_name,
-                                                 'VariablePrototype': variable_prototype})
-                        dict_all = {'RequiredVariables': required_var, 'FlowVariablesIndex': flow_variable_index,
-                                    'FlowId': flow_id, 'CountOfMustBeDefinedVars': count_req}
-                    output_flows_list.append(dict_all)
+            input_flows_list = func_sql.show_flows(model_id, "input", input_flows, self.connection)
+            output_flows_list = func_sql.show_flows(model_id, "output", output_flows, self.connection)
 
             if extra_params is None:
                 problem_text += ("\nСловарь %s из модели номер %d пуст" % ("all_params", model_id))
@@ -214,32 +151,7 @@ class DbConnection:
             id_flow_params_list = id_flow_params_list + id_flow_params
 
         id_calcs_list = func_sql.add_calc(id_model, calculations, self.connection)
-        # for calculation in calculations:
-        #     order_calc = calculation['Order']
-        #     express_calc = calculation['Expression']
-        #     defined_param = calculation['DefinedVariable']
-        #     required_params_list = calculation['NeededVariables']
-        #     qry = f"""select add_calculation ({id_model}, {order_calc}, '{express_calc}');"""
-        #     with self.connection.cursor() as cursor:
-        #         cursor.execute(qry)
-        #         id_calc = cursor.fetchall()[0][0]
-        #     id_calcs_list.append(id_calc)
-        #     qry2 = f"""select defined_param_fk, required_params_fk from calculation c where id={id_calc};"""
-        #     with self.connection.cursor() as cursor:
-        #         cursor.execute(qry2)
-        #         params = cursor.fetchall()[0]
-        #     required_params_group = params[1]
-        #     defined_params_group = params[0]
-        #
-        #     qry3 = f"""select insert_calc_param({id_model}, '{defined_param}', {id_calc}, {defined_params_group});"""
-        #     with self.connection.cursor() as cursor:
-        #         cursor.execute(qry3)
-        #     for req in required_params_list:
-        #         qry4 = f"""select insert_calc_param({id_model}, '{req}', {id_calc}, {required_params_group});"""
-        #         with self.connection.cursor() as cursor:
-        #             cursor.execute(qry4)
 
-        # all_params_list = id_extra_params_list + id_default_params_list + id_flow_params_list
         qry = f"""update model_of_block set input_flows=array{id_flows_model_input},
         output_flows=array{id_flows_model_output}, default_params =array{id_default_params_list},
         extra_params =array{id_extra_params_list},  expressions =array{id_calcs_list}
