@@ -134,7 +134,6 @@ def show_flows(mod_id, type, flows, con):
     flag = False # поднимается если ошибка критическая для модели
     if (flows is None) or (len(flows) == 0):
         problem_flow_text += ("\nСловарь потоков типа %s из модели номер %d пуст" % (type, mod_id))
-        flag = True
     else:
         for f_id in flows:
             qry = f"""select * from flow where id={f_id};"""
