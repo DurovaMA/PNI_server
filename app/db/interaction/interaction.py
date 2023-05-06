@@ -35,7 +35,6 @@ class DbConnection:
             extra_params = m[7]
             expressions = m[8]
 
-            expressions_text = []
             critical_flag = False
 
             input_flows_list, problem_flow, flag_flow = func_sql.show_flows \
@@ -56,34 +55,18 @@ class DbConnection:
             problem_text += problem_params
             critical_flag += flag_params
 
-            if expressions is None:
-                problem_text += ("\nСловарь %s из модели номер %d пуст" % ("expressions", model_id))
-            else:
-                for e in expressions:
-                    qry = f"""select * from calculation where id={e};"""
-                    with self.connection.cursor() as cursor:
-                        cursor.execute(qry)
-                        e_info = cursor.fetchall()[0]
-                        if e_info is None:
-                            problem_text += ("\nДанные для расчетного выражения %s из модели номер %d не найдены" % (
-                                e, model_id))
-                        else:
-                            try:
-                                dict_all = {'ExpressionId': e_info[0], 'Order': e_info[1], 'Expression': e_info[2],
-                                            'DefinedVariableId': e_info[3], 'NeededVariables': e_info[4]}
-                            except Exception:
-                                raise ModelProblems("Ошибка индекса для %s из модели номер %d " % (e_info, model_id))
-                            else:
-                                expressions_text.append(dict_all)
-            # if ((len(input_flows_list) < 1) or (len(output_flows_list) < 1) or (default_params_list is None)
-            #         or (extra_params_list is None) or (expressions_text is None)):
+            expressions_list, problem_expressions, flag_expression = func_sql.show_expressions \
+                (model_id, expressions, self.connection)
+            problem_text += problem_expressions
+            critical_flag += flag_expression
+
             if (critical_flag > 0) or ((len(input_flows_list) < 1) and (len(output_flows_list) < 1)):
                 problem_text += ("\nМодель номер %d не будет отображена\n" % model_id)
             else:
                 model_desc = {'ModelId': model_id, 'Title': title, 'Description': description,
                               'InputFlows': input_flows_list, 'OutputFlows': output_flows_list,
                               'DefaultParameters': default_params_list, 'CustomParameters': extra_params_list,
-                              'Expressions': expressions_text}
+                              'Expressions': expressions_list}
                 description_list.append(model_desc)
 
             problem_list.append(problem_text)

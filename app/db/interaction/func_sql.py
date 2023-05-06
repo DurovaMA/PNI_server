@@ -174,7 +174,7 @@ def show_flows(mod_id, type, flows, con):
     return id_flows_list, problem_flow_text, flag
 
 def show_extra_default_params(mod_id, type, params, con):
-    id_params_list = []
+    params_list = []
     problem_param_text = ""
     flag = False # поднимается если ошибка критическая для модели
     if (params is None) or (len(params) == 0):
@@ -192,8 +192,32 @@ def show_extra_default_params(mod_id, type, params, con):
                     param_info = result_sql[0]
                     dict_all = {'ParametrId': param_info[0], 'VariableName': param_info[1],
                                 'Title': param_info[3], 'Units': param_info[4]}
-                    id_params_list.append(dict_all)
-    return id_params_list, problem_param_text, flag
+                    params_list.append(dict_all)
+    return params_list, problem_param_text, flag
+
+def show_expressions(mode_id, expressions, con):
+    expressions_list = []
+    problem_expres_text = ""
+    flag = False  # поднимается если ошибка критическая для модели
+    if expressions is None or (len(expressions) == 0):
+        problem_expres_text += ("\nСловарь %s из модели номер %d пуст" % ("expressions", mode_id))
+        flag = True
+    else:
+        for e in expressions:
+            qry = f"""select * from calculation where id={e};"""
+            with con.cursor() as cursor:
+                cursor.execute(qry)
+                result_sql = cursor.fetchall()
+                if (result_sql is None) or (len(result_sql) == 0):
+                    problem_expres_text += ("\nДанные для расчетного выражения %s из модели номер %d не найдены" % (
+                        e, mode_id))
+                    flag = True
+                else:
+                    e_info = result_sql[0]
+                    dict_all = {'ExpressionId': e_info[0], 'Order': e_info[1], 'Expression': e_info[2],
+                                    'DefinedVariableId': e_info[3], 'NeededVariables': e_info[4]}
+                    expressions_list.append(dict_all)
+    return expressions_list, problem_expres_text, flag
 
 from app.db.client.client import PostgreSQLConnection
 from app.db.interaction import func_sql
