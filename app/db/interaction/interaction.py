@@ -13,6 +13,8 @@ class DbConnection:
         )
         self.connection.autocommit = True
 
+
+
     def get_models_info(self):
         qry = f"""select * from model_of_block;"""
         with self.connection.cursor() as cursor:
@@ -58,7 +60,7 @@ class DbConnection:
             expressions_list, problem_expressions, flag_expression = func_sql.show_expressions \
                 (model_id, expressions, self.connection)
             problem_text += problem_expressions
-            critical_flag += flag_expression
+            #critical_flag += flag_expression
 
             if (critical_flag > 0) or ((len(input_flows_list) < 1) and (len(output_flows_list) < 1)):
                 problem_text += ("\nМодель номер %d не будет отображена\n" % model_id)
@@ -74,11 +76,33 @@ class DbConnection:
         print('\n'.join(map(str, problem_list)))
         return description_list
 
+    def get_info_instance(self, model_id):
+        instance_info = func_sql.info_instance(model_id, self.connection)
+        return instance_info
+
     def create_model(self, model_description, model_title, in_flows, out_flows, default_params, extra_params,
                      calculations):
 
+        print(type(default_params))
+        print(default_params)
         # массив переменных модели, фигурирующих в ней от потоков
         id_flow_params_list = []
+
+        all_params = default_params + extra_params
+        list_params = []
+        for param in all_params:
+            symbol = param['Symbol']
+            list_params.append(symbol)
+        visited = set()
+        dup = [x for x in list_params if x in visited or (visited.add(x) or False)]
+        if dup != []:
+            print("Дублируются параметры: ", dup)  # [1, 5, 1]
+            return -1
+
+        # dup = func_sql.check_dup(model_title, model_description, self.connection)
+
+
+
 
         # создание записи в таблице model_of_block
         id_model = func_sql.create_new_model(model_title, model_description, self.connection)
@@ -91,10 +115,17 @@ class DbConnection:
         # Аналогично для параметров по умолчанию
         id_group_def, id_default_params_list = func_sql.add_extra_def_params('default_params', 'default', id_model,
                                                                              default_params, self.connection)
+        if id_default_params_list == -1 or id_extra_params_list == -1:
+            func_sql.delete_model(id_model, self.connection)
+            return -1
 
         # Создает записи о входных и выходных потоках, возвращает массивы идентификаторов из таблицы flow
         id_flows_model_input = func_sql.add_flow(id_model, 'input', in_flows, self.connection)
         id_flows_model_output = func_sql.add_flow(id_model, 'output', out_flows, self.connection)
+
+        if id_flows_model_input == -1 or id_flows_model_output == -1:
+            func_sql.delete_model(id_model, self.connection)
+            return -1
 
         # Объединяет массивы входных и выходных потоков
         flows_model = id_flows_model_input + id_flows_model_output
@@ -106,18 +137,20 @@ class DbConnection:
         # массив рассчетных выражений модели
         id_calcs_list = func_sql.add_calc(id_model, calculations, self.connection)
 
-        qry = f"""update model_of_block set input_flows=array{id_flows_model_input},
-        output_flows=array{id_flows_model_output}, default_params =array{id_default_params_list},
-        extra_params =array{id_extra_params_list},  expressions =array{id_calcs_list}
-        where id = {id_model};"""
-        with self.connection.cursor() as cursor:
-            cursor.execute(qry)
-
-        if id_extra_params_list and id_default_params_list and id_flow_params_list:
+        if id_calcs_list != -1 and id_extra_params_list != -1 and id_default_params_list != -1 and id_flow_params_list != -1:
             print('Добавлена модель номер ', id_model)
+            qry = f"""update model_of_block set input_flows=array{id_flows_model_input},
+                    output_flows=array{id_flows_model_output}, default_params =array{id_default_params_list},
+                    extra_params =array{id_extra_params_list},  expressions =array{id_calcs_list}
+                    where id = {id_model};"""
+            with self.connection.cursor() as cursor:
+                cursor.execute(qry)
             return id_model
         else:
+            return -1
             raise ModelProblems('Не удалось добавить модель!')
+
+
 
 
 if __name__ == '__main__':

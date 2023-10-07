@@ -1,5 +1,5 @@
 import threading
-import requests
+#import requests
 import argparse
 
 from flask import Flask, request, jsonify, abort
@@ -25,6 +25,7 @@ class Server:
         self.app.add_url_rule('/', view_func=self.get_home)
         self.app.add_url_rule('/get_models', view_func=self.get_models_info)
         self.app.add_url_rule('/create_model', view_func=self.add_model_info, methods=['POST'])
+        self.app.add_url_rule('/get_instance', view_func=self.get_instance_info, methods=['POST'])
         self.app.add_url_rule('/test_zapros', view_func=self.test, methods=['POST'])
 
         self.app.register_error_handler(404, self.page_not_found)
@@ -52,6 +53,15 @@ class Server:
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
 
+    def get_instance_info(self):
+        model = dict(request.json)
+        model_id = model['model']
+        try:
+            instance_info = self.db_connect.get_info_instance(model_id)
+            return instance_info, 200
+        except ModelProblems as m_problem:
+            abort(404, description=m_problem)
+
     def add_model_info(self):
         model_info = dict(request.json)
         model_id = self.db_connect.create_model(
@@ -63,7 +73,10 @@ class Server:
             extra_params=model_info['ExtraParameters'],
             calculations = model_info['Expressions']
         )
-        return f'Success added {model_id}', 201
+        if model_id == -1:
+            return f'Модель не может быть добавлена', 201
+        else:
+            return f'Success added {model_id}', 201
 
 
 if __name__ == '__main__':
