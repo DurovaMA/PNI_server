@@ -1,11 +1,11 @@
 import threading
-#import requests
+# import requests
 import argparse
 
 from flask import Flask, request, jsonify, abort
 from app.api.utils import config_parser
 from app.db.exceptions import ParametrNotFoundException, ModelProblems
-from app.db.interaction.interaction import  DbConnection
+from app.db.interaction.interaction import DbConnection
 
 
 class Server:
@@ -25,7 +25,10 @@ class Server:
         self.app.add_url_rule('/', view_func=self.get_home)
         self.app.add_url_rule('/get_models', view_func=self.get_models_info)
         self.app.add_url_rule('/create_model', view_func=self.add_model_info, methods=['POST'])
+        self.app.add_url_rule('/create_scheme', view_func=self.add_scheme_info, methods=['POST'])
         self.app.add_url_rule('/get_instance', view_func=self.get_instance_info, methods=['POST'])
+        self.app.add_url_rule('/get_envs', view_func=self.get_envs_info)
+
         self.app.add_url_rule('/test_zapros', view_func=self.test, methods=['POST'])
 
         self.app.register_error_handler(404, self.page_not_found)
@@ -48,10 +51,17 @@ class Server:
 
     def get_models_info(self):
         try:
-            models_info = self.db_connect.get_models_info()
+            models_info = self.db_connect.get_models_info()[0]
             return models_info, 200
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
+
+    def get_envs_info(self):
+        try:
+            envs_info = self.db_connect.get_envs_info()
+            return envs_info, 200
+        except ParametrNotFoundException:
+            abort(404, description=' envs not found')
 
     def get_instance_info(self):
         model = dict(request.json)
@@ -71,12 +81,24 @@ class Server:
             out_flows=model_info['OutputFlows'],
             default_params=model_info['DefaultParameters'],
             extra_params=model_info['ExtraParameters'],
-            calculations = model_info['Expressions']
+            calculations=model_info['Expressions']
         )
         if model_id == -1:
             return f'Модель не может быть добавлена', 201
         else:
             return f'Success added {model_id}', 201
+
+    def add_scheme_info(self):
+        scheme_info = dict(request.json)
+        scheme_id = self.db_connect.create_scheme(
+            title=scheme_info['Title'],
+            instances=scheme_info['Instances'],
+            flows=scheme_info['Flows']
+        )
+        if scheme_id == -1:
+            return f'Схема не может быть добавлена', 201
+        else:
+            return f'Success added {scheme_id}', 201
 
 
 if __name__ == '__main__':

@@ -18,21 +18,55 @@ def delete_model(id, con):
     return "OK"
 
 
+def cursor_add_extra_def_param(model, gop_id,  p_type, tit, sym, un, type_incl, con):
+    par_m_id_list = []
+    with con.cursor() as cursor:
+        ins_parametr_qry = f"""INSERT INTO public.parametr (title, symbol, units, param_type, model_fk) 
+        VALUES('{tit}', '{sym}', '{un}', '{p_type}', {model})	RETURNING * ;"""
+        cursor.execute(ins_parametr_qry)
+        result = cursor.fetchall()
+        par_id = result[0][0]
+
+        ins_param_of_group_qry = f"""INSERT INTO public.param_of_group (param_fk, group_fk) 
+        VALUES({par_id}, {gop_id})	RETURNING * ; """
+        cursor.execute(ins_param_of_group_qry)
+        result = cursor.fetchall()
+        pog_id = result[0][0]
+
+        ins_param_of_model_qry = f"""insert into public.param_of_model (model_fk, param_fk, param_name, param_type) 
+        VALUES({model}, {par_id}, '{sym}', '{p_type}') ON CONFLICT (model_fk, param_name)  	DO NOTHING ; """
+        cursor.execute(ins_param_of_model_qry)
+
+        sel_pom_qry = f"""SELECT * FROM public.param_of_model WHERE model_fk={model} and param_name='{sym}'; """
+        cursor.execute(sel_pom_qry)
+        result = cursor.fetchall()
+        par_m_id = result[0][0]
+
+        par_m_id_list.append(par_m_id)
+
+        ins_all_inclusions_qry = f"""insert into public.all_inclusions (param_group_fk, param_of_model_fk, type_inclusion)
+        VALUES({pog_id}, {par_m_id}, '{type_incl}')	RETURNING *; """
+        cursor.execute(ins_all_inclusions_qry)
+        result = cursor.fetchall()
+        par_all_in = result[0][0]
+
+    return par_m_id_list
+
 def add_extra_def_params(group_type, param_type, model, param_list, con):
     """Создает группу параметров и записывает их в эту группу.
     Принимает тип группы, тип параметров, номер модели, список параметров и соединение с БД.
     Возвращает список из: идентификатор добавленной группы и массив идентификаторов параметров"""
+    if param_list ==[]:
+        return 0, []
     id_and_list = []
     qry = f"""insert into group_par(group_type, model_fk)
         values('{group_type}', {model})    RETURNING    id"""
-    # qry2 = f"""select create_group('{group_type}', {model});"""
     with con.cursor() as cursor:
         cursor.execute(qry)
         gop_id = cursor.fetchall()[0][0]
     # получили id созданной группы параметров в таблице group_par
     id_and_list.append(gop_id)
 
-    par_m_id_list = []
     for cur_param in param_list:
         try:
             title = cur_param['Title']
@@ -42,38 +76,8 @@ def add_extra_def_params(group_type, param_type, model, param_list, con):
         except Exception:
             print("Ошибка в ключах особых параметров")
             return gop_id, -1
-        # qry = f"""select add_extra_def_param({model}, {id_group}, '{param_type}', '{title}', '{symbol}', '{units}', '{type_inclusion}');"""
-        with con.cursor() as cursor:
-            ins_parametr_qry = f"""INSERT INTO public.parametr (title, symbol, units, param_type, model_fk) 
-            VALUES('{title}', '{symbol}', '{units}', '{param_type}', {model})	RETURNING * ;"""
-            cursor.execute(ins_parametr_qry)
-            result = cursor.fetchall()
-            par_id = result[0][0]
+        par_m_id_list = cursor_add_extra_def_param(model, gop_id, param_type, title, symbol, units, type_inclusion, con)
 
-            ins_param_of_group_qry = f"""INSERT INTO public.param_of_group (param_fk, group_fk) 
-            VALUES({par_id}, {gop_id})	RETURNING * ; """
-            cursor.execute(ins_param_of_group_qry)
-            result = cursor.fetchall()
-            pog_id = result[0][0]
-
-            ins_param_of_model_qry = f"""insert into public.param_of_model (model_fk, param_fk, param_name, param_type) 
-            VALUES({model}, {par_id}, '{symbol}', '{param_type}') ON CONFLICT (model_fk, param_name)  	DO NOTHING ; """
-            cursor.execute(ins_param_of_model_qry)
-
-            sel_pom_qry = f"""SELECT * FROM public.param_of_model WHERE model_fk={model} and param_name='{symbol}'; """
-            cursor.execute(sel_pom_qry)
-            result = cursor.fetchall()
-            par_m_id = result[0][0]
-
-            par_m_id_list.append(par_m_id)
-
-            ins_all_inclusions_qry = f"""insert into public.all_inclusions (param_group_fk, param_of_model_fk, type_inclusion)
-            VALUES({pog_id}, {par_m_id}, '{type_inclusion}')	RETURNING *; """
-            cursor.execute(ins_all_inclusions_qry)
-            result = cursor.fetchall()
-            par_all_in = result[0][0]
-
-    # id_and_list.append(par_m_id_list)
     return gop_id, par_m_id_list
 
 
@@ -96,7 +100,6 @@ def add_flow(model, flow_type, flows, con):
             count_def = 2
             qry = f"""INSERT INTO public.flow  	(param_index, flow_type , environment_fk , count_params_out,  model_fk) 
             VALUES('{param_index}', 'output', {environment_fk}, {count_def}, {model})	RETURNING id;"""
-
 
         with con.cursor() as cursor:
             try:
@@ -156,7 +159,8 @@ def add_params_from_flow(mod_id, flow_id, con):
     if pom_inserted_list:
         return pom_inserted_list
     else:
-        print('problem')
+        return -1
+
 
 def cursor_insert_calc_param(model, p_name, group_id , type_incl, con):
     with con.cursor() as cursor:
@@ -179,6 +183,24 @@ def cursor_insert_calc_param(model, p_name, group_id , type_incl, con):
         cursor.execute(qry5)
     return parametr_group_id
 
+def cursor_add_calculation(model_id, order_c, expres, con):
+    with con.cursor() as cursor:
+        qry1 = f"""insert into group_par(group_type, model_fk)
+        values('required_for_calc', {model_id}) RETURNING id;"""
+        cursor.execute(qry1)
+        group_required = cursor.fetchall()[0][0]
+
+        qry2 = f"""insert into group_par(group_type, model_fk)
+        values('defined_from_calc', {model_id}) RETURNING id;"""
+        cursor.execute(qry2)
+        group_defined = cursor.fetchall()[0][0]
+
+        qry3 = f"""insert into calculation (order_calc, expression_calc, required_params_fk, defined_param_fk, model_fk)
+        values ({order_c}, '{expres}',{group_required} ,{group_defined} ,{model_id} ) returning id;"""
+        cursor.execute(qry3)
+        id_calc = cursor.fetchall()[0][0]
+    return id_calc, group_required, group_defined
+
 def add_calc(mod_id, calc_list, con):
     """Заполняет таблицу расчетных выражений. Принимает номер модели, массив записей о выражениях и соединение
          с БД. Возвращает массив идентификаторов вставленных выражений """
@@ -193,59 +215,27 @@ def add_calc(mod_id, calc_list, con):
             print("Ошибка в ключах calculation")
             return -1
 
-        # qry = f"""select add_calculation ({mod_id}, {order_calc}, '{express_calc}');"""
+        try:
+            id_calc, group_required, group_defined = cursor_add_calculation(mod_id, order_calc, express_calc, con)
+        except Exception:
+            print("Ошибка в добавлении выражения calculation ", express_calc,  " модели ", "mod_id")
+            return -1
 
-        with con.cursor() as cursor:
-            qry1 = f"""insert into group_par(group_type, model_fk)
-            values('required_for_calc', {mod_id}) RETURNING id;"""
-            cursor.execute(qry1)
-            group_required = cursor.fetchall()[0][0]
-
-            qry2 = f"""insert into group_par(group_type, model_fk)
-            values('defined_from_calc', {mod_id}) RETURNING id;"""
-            cursor.execute(qry2)
-            group_defined = cursor.fetchall()[0][0]
-
-            qry3 = f"""insert into calculation (order_calc, expression_calc, required_params_fk, defined_param_fk, model_fk)
-            values ({order_calc}, '{express_calc}',{group_required} ,{group_defined} ,{mod_id} ) returning id;"""
-            cursor.execute(qry3)
-            id_calc = cursor.fetchall()[0][0]
         id_list.append(id_calc)
-        # qry2 = f"""select defined_param_fk, required_params_fk from calculation c where id={id_calc};"""
-        # with con.cursor() as cursor:
-        #     cursor.execute(qry2)
-        #     params = cursor.fetchall()[0]
         id_required_params_group = group_required
         id_defined_params_group = group_defined
 
-        type_inclusion = "defined for " + str(id_calc)
-        cursor_insert_calc_param(mod_id, defined_param, id_defined_params_group, type_inclusion, con)
-        # with con.cursor() as cursor:
-        #     qry3 = f"""select pog.param_fk, pom.id 	from all_inclusions a_i
-        #     join param_of_group pog on a_i.param_group_fk=pog.id
-        #     join param_of_model pom on pom.id =a_i.param_of_model_fk
-        #     where pom.model_fk={mod_id} and param_name='{defined_param}';"""
-        #     cursor.execute(qry3)
-        #     future_ai = cursor.fetchall()
-        #     parametr_id = future_ai[0][0]
-        #     pom_id = future_ai[0][1]
-        #
-        #     qry4 = f"""INSERT INTO public.param_of_group (param_fk, group_fk)
-        #     VALUES({parametr_id}, {defined_params_group}) RETURNING id;"""
-        #     cursor.execute(qry4)
-        #     parametr_group_id = cursor.fetchall()[0][0]
-        #
-        #     qry5 = f"""insert into public.all_inclusions (param_group_fk, param_of_model_fk, type_inclusion)
-        #     values ({parametr_group_id}, {pom_id}, '{type_inclusion}');"""
-        #     cursor.execute(qry5)
+        try:
+            type_inclusion = "defined for " + str(id_calc)
+            cursor_insert_calc_param(mod_id, defined_param, id_defined_params_group, type_inclusion, con)
 
+            for req in required_params_list:
+                type_inclusion = "required for " + str(id_calc)
+                cursor_insert_calc_param(mod_id, req, id_required_params_group, type_inclusion, con)
+        except Exception:
+            print("Ошибка в добавлении параметров для выражения  ", express_calc)
+            return -1
 
-        for req in required_params_list:
-            type_inclusion = "required for " + str(id_calc)
-            cursor_insert_calc_param(mod_id, req, id_required_params_group, type_inclusion, con)
-            # qry4 = f"""select insert_calc_param({mod_id}, '{req}', {id_calc}, {required_params_group}, '{type_inclusion}');"""
-            # with con.cursor() as cursor:
-            #     cursor.execute(qry4)
     return id_list
 
 
@@ -289,7 +279,7 @@ def show_flows(mod_id, type, flows, con):
                                       'VariablePrototype': variable_prototype})
                 if type == "input":
                     dict_all = {'AvailableVariables': vars_desc, 'FlowVariablesIndex': flow_variable_index,
-                                'Flow_id': flow_id}
+                                'FlowId': flow_id}
                 elif type == "output":
                     dict_all = {'RequiredVariables': vars_desc, 'FlowVariablesIndex': flow_variable_index,
                                 'FlowId': flow_id, 'CountOfMustBeDefinedVars': count_req}
@@ -366,11 +356,32 @@ def show_expressions(mode_id, expressions, con):
 
 
 def info_instance(mod_id, con):
+    qry = f"""select * from show_calc_defined where model={mod_id};"""
+    with con.cursor() as cursor:
+        cursor.execute(qry)
+        result_sql = cursor.fetchall()
+    def_dict = {}
+    calc_var_dict = {}
+    for calc in result_sql:
+        try:
+            param_of_model = calc[1]
+            exp_id = calc[2]
+            needed_var = calc[5]
+            type = calc[6]
+            par_id = calc[7]
+        except Exception:
+            print("Ошибка в ключах calculation")
+            return -1
+        calc_var_dict[exp_id] = [param_of_model, needed_var]
+        var_info = {'name': needed_var, 'type': type, 'pom_id': param_of_model, 'p_id': par_id}
+        def_dict[exp_id] = var_info
+
     qry = f"""select * from show_calc_required where model={mod_id};"""
     with con.cursor() as cursor:
         cursor.execute(qry)
         result_sql = cursor.fetchall()
     calc_list = []
+    cur_calc = -1
     for calc in result_sql:
         try:
             param_of_model = calc[1]
@@ -383,29 +394,69 @@ def info_instance(mod_id, con):
         except Exception:
             print("Ошибка в ключах calculation")
             return -1
-        dict = {'ExpressionId': exp_id, 'Order': order, 'Expression': exp,
-                'NeededVariable': needed_var, 'type': type, 'pom_id': param_of_model, 'p_id': par_id}
-        calc_list.append(dict)
-    cal_id = -1
-    text_list = []
-    for dict in calc_list:
-        if dict['ExpressionId'] != cal_id:
-            text = ""
-            cal_id = dict['ExpressionId']
-            text_list.append()
+        if cur_calc != exp_id:  # если это новое выражение
+            cur_calc = exp_id
+            dev_info = def_dict[exp_id]
+            dict = {'ExpressionId': exp_id, 'Order': order, 'Expression': exp,
+                    'NeededVariables': [], 'DefinedVariable': [dev_info]}
+            needed_var_dict = {}
+            needed_list = []
+            var_info = {'name': needed_var, 'type': type, 'pom_id': param_of_model, 'p_id': par_id}
+            needed_list.append(var_info)
+            dict['NeededVariables'] = needed_list
+            calc_list.append(dict)
         else:
-            text = {dict['Expression']: 1}
-    req_dict = {'Required': calc_list}
+            var_info = {'name':needed_var, 'type': type, 'pom_id': param_of_model, 'p_id': par_id}
+            needed_list.append(var_info)
+            dict['NeededVariables'] = needed_list
 
-    cal_id = -1
-    text_list = []
-    for d in req_dict:
-        if d['ExpressionId'] != cal_id:
-            cal_id = d['ExpressionId']
-            text = "Для решения выражения " + d['Expression'] + " требуется нахождение значений переменных "
+    for ex in calc_list:
+        print (ex)
+    return calc_list
 
-    return req_dict
+def create_scheme(name, con):
+    qry = f"""insert into scheme (scheme_name) values ('{name}') returning id;"""
+    with con.cursor() as cursor:
+        cursor.execute(qry)
+        result_sql = cursor.fetchall()
+    scheme_id = result_sql[0][0]
+    return scheme_id
 
+def create_topography( x, y, con):
+    qry = f"""insert into topography (x, y) values ({x}, {y}) returning id;"""
+    with con.cursor() as cursor:
+        cursor.execute(qry)
+        result_sql = cursor.fetchall()
+    topog_id = result_sql[0][0]
+    return topog_id
+
+def create_instance(model, scheme, topography, con):
+    qry = f"""insert into instnc (model_fk, topography_fk, scheme_fk, instance_type) 
+        values ({model}, {topography}, {scheme}, 'block') returning id;"""
+    with con.cursor() as cursor:
+        cursor.execute(qry)
+        result_sql = cursor.fetchall()
+    instance_id = result_sql[0][0]
+    return instance_id
+
+
+def insert_param_of_instnc(instance, pom, param_name, con):
+    qry = f"""insert into param_of_instnc (instance_fk, pom_fk, param_name) 
+        values ({instance}, {pom}, '{param_name}') returning id;"""
+    with con.cursor() as cursor:
+        cursor.execute(qry)
+        result_sql = cursor.fetchall()
+    poi_id = result_sql[0][0]
+    return poi_id
+
+def insert_scheme_flow(from_instance, to_instance, scheme, from_flow, to_flow, con):
+    qry = f"""insert into scheme_flows (from_instance_fk, to_instance_fk, scheme_fk, from_flow_fk, to_flow_fk) 
+        values ({from_instance}, {to_instance}, {scheme}, {from_flow}, {to_flow}) returning id;"""
+    with con.cursor() as cursor:
+        cursor.execute(qry)
+        result_sql = cursor.fetchall()
+    sh_id = result_sql[0][0]
+    return sh_id
 
 from app.db.client.client import PostgreSQLConnection
 from app.db.interaction import func_sql
