@@ -42,9 +42,9 @@ class DbConnection:
             p_of_e = []  # список параметров текущей среды
             for p in params:
                 p_of_e.append(p[0])
-            env_list.append({'FlowEnviromentId': e[0], 'FlowEnvironmentType': e[1], 'BaseParametres': p_of_e})
+            env_list.append({'FlowEnvironmentId': e[0], 'FlowEnvironmentType': e[1], 'BaseParameters': p_of_e})
 
-        request_dict["BaseParametres"] = param_list
+        request_dict["BaseParameters"] = param_list
         request_dict["FlowEnvironments"] = env_list
 
         if request_dict:
@@ -107,9 +107,10 @@ class DbConnection:
             problem_text += problem_params
             critical_flag += flag_params
 
-            expressions_list, problem_expressions, flag_expression = func_sql.show_expressions \
+
+            expressions_list = func_sql.show_expressions \
                 (model_id, expressions, self.connection)
-            problem_text += problem_expressions
+            #problem_text += problem_expressions
             # critical_flag += flag_expression
 
             if (critical_flag > 0) or ((len(input_flows_list) < 1) and (len(output_flows_list) < 1)):
@@ -120,7 +121,7 @@ class DbConnection:
                               'DefaultParameters': default_params_list, 'CustomParameters': extra_params_list,
                               'Expressions': expressions_list}
                 description_list.append(model_desc)
-            description_dict[model_id] = model_desc
+                description_dict[model_id] = model_desc
             problem_list.append(problem_text)
 
         print('\n'.join(map(str, problem_list)))

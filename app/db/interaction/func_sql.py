@@ -18,7 +18,7 @@ def delete_model(id, con):
     return "OK"
 
 
-def cursor_add_extra_def_param(model, gop_id,  p_type, tit, sym, un, type_incl, con):
+def cursor_add_extra_def_param(model, gop_id, p_type, tit, sym, un, type_incl, con):
     par_m_id_list = []
     with con.cursor() as cursor:
         ins_parametr_qry = f"""INSERT INTO public.parametr (title, symbol, units, param_type, model_fk) 
@@ -42,7 +42,7 @@ def cursor_add_extra_def_param(model, gop_id,  p_type, tit, sym, un, type_incl, 
         result = cursor.fetchall()
         par_m_id = result[0][0]
 
-        par_m_id_list.append(par_m_id)
+        #par_m_id_list.append(par_m_id)
 
         ins_all_inclusions_qry = f"""insert into public.all_inclusions (param_group_fk, param_of_model_fk, type_inclusion)
         VALUES({pog_id}, {par_m_id}, '{type_incl}')	RETURNING *; """
@@ -50,13 +50,14 @@ def cursor_add_extra_def_param(model, gop_id,  p_type, tit, sym, un, type_incl, 
         result = cursor.fetchall()
         par_all_in = result[0][0]
 
-    return par_m_id_list
+    return par_m_id
+
 
 def add_extra_def_params(group_type, param_type, model, param_list, con):
     """Создает группу параметров и записывает их в эту группу.
     Принимает тип группы, тип параметров, номер модели, список параметров и соединение с БД.
     Возвращает список из: идентификатор добавленной группы и массив идентификаторов параметров"""
-    if param_list ==[]:
+    if param_list == []:
         return 0, []
     id_and_list = []
     qry = f"""insert into group_par(group_type, model_fk)
@@ -67,6 +68,7 @@ def add_extra_def_params(group_type, param_type, model, param_list, con):
     # получили id созданной группы параметров в таблице group_par
     id_and_list.append(gop_id)
 
+    par_m_id_list = []
     for cur_param in param_list:
         try:
             title = cur_param['Title']
@@ -76,7 +78,7 @@ def add_extra_def_params(group_type, param_type, model, param_list, con):
         except Exception:
             print("Ошибка в ключах особых параметров")
             return gop_id, -1
-        par_m_id_list = cursor_add_extra_def_param(model, gop_id, param_type, title, symbol, units, type_inclusion, con)
+        par_m_id_list.append(cursor_add_extra_def_param(model, gop_id, param_type, title, symbol, units, type_inclusion, con))
 
     return gop_id, par_m_id_list
 
@@ -162,7 +164,7 @@ def add_params_from_flow(mod_id, flow_id, con):
         return -1
 
 
-def cursor_insert_calc_param(model, p_name, group_id , type_incl, con):
+def cursor_insert_calc_param(model, p_name, group_id, type_incl, con):
     with con.cursor() as cursor:
         qry3 = f"""select pog.param_fk, pom.id 	from all_inclusions a_i
         join param_of_group pog on a_i.param_group_fk=pog.id
@@ -183,7 +185,8 @@ def cursor_insert_calc_param(model, p_name, group_id , type_incl, con):
         cursor.execute(qry5)
     return parametr_group_id
 
-def cursor_add_calculation(model_id, order_c, expres, con):
+
+def cursor_add_calculation(model_id, order_c, expres, type, con):
     with con.cursor() as cursor:
         qry1 = f"""insert into group_par(group_type, model_fk)
         values('required_for_calc', {model_id}) RETURNING id;"""
@@ -195,11 +198,12 @@ def cursor_add_calculation(model_id, order_c, expres, con):
         cursor.execute(qry2)
         group_defined = cursor.fetchall()[0][0]
 
-        qry3 = f"""insert into calculation (order_calc, expression_calc, required_params_fk, defined_param_fk, model_fk)
-        values ({order_c}, '{expres}',{group_required} ,{group_defined} ,{model_id} ) returning id;"""
+        qry3 = f"""insert into calculation (order_calc, expression_calc, required_params_fk, defined_param_fk, model_fk, type_calc)
+        values ({order_c}, '{expres}',{group_required} ,{group_defined} ,{model_id}, {type} ) returning id;"""
         cursor.execute(qry3)
         id_calc = cursor.fetchall()[0][0]
     return id_calc, group_required, group_defined
+
 
 def add_calc(mod_id, calc_list, con):
     """Заполняет таблицу расчетных выражений. Принимает номер модели, массив записей о выражениях и соединение
@@ -211,18 +215,37 @@ def add_calc(mod_id, calc_list, con):
             express_calc = calculation['Expression']
             defined_param = calculation['DefinedVariable']
             required_params_list = calculation['NeededVariables']
+            type_calc = calculation['ExpressionType']
         except Exception:
             print("Ошибка в ключах calculation")
             return -1
 
-        try:
-            id_calc, group_required, group_defined = cursor_add_calculation(mod_id, order_calc, express_calc, con)
-        except Exception:
-            print("Ошибка в добавлении выражения calculation ", express_calc,  " модели ", "mod_id")
-            return -1
+        # если нет необходимых переменных
+        if required_params_list == []:
+            with con.cursor() as cursor:
+
+                qry2 = f"""insert into group_par(group_type, model_fk)
+                values('defined_from_calc', {mod_id}) RETURNING id;"""
+                cursor.execute(qry2)
+                group_defined = cursor.fetchall()[0][0]
+
+                qry3 = f"""insert into calculation (order_calc, expression_calc, defined_param_fk, model_fk, type_calc)
+                values ({order_calc}, '{express_calc}', {group_defined} ,{mod_id}, {type_calc} ) returning id;"""
+                cursor.execute(qry3)
+                id_calc = cursor.fetchall()[0][0]
+                id_required_params_group = None
+        else:
+
+            try:
+                id_calc, group_required, group_defined = cursor_add_calculation(mod_id, order_calc, express_calc,
+                                                                                type_calc, con)
+                id_required_params_group = group_required
+            except Exception:
+                print("Ошибка в добавлении выражения calculation ", express_calc, " модели ", mod_id)
+                return -1
 
         id_list.append(id_calc)
-        id_required_params_group = group_required
+
         id_defined_params_group = group_defined
 
         try:
@@ -272,17 +295,18 @@ def show_flows(mod_id, type, flows, con):
                     flow_variable_id = executed[1]
                     flow_id = executed[2]
                     flow_variable_name = executed[3]
-                    variable_prototype = {'ParametrId': executed[4], 'Title': executed[5],
+                    env_id = executed[10]
+                    variable_prototype = {'ParameterId': executed[4], 'Title': executed[5],
                                           'Symbol': executed[6], 'Units': executed[7]}
                     vars_desc.append({'FlowVariableId': flow_variable_id, 'FlowId': flow_id,
                                       'FlowVariableName': flow_variable_name,
                                       'VariablePrototype': variable_prototype})
                 if type == "input":
                     dict_all = {'AvailableVariables': vars_desc, 'FlowVariablesIndex': flow_variable_index,
-                                'FlowId': flow_id}
+                                'FlowId': flow_id, 'EnvironmentId': env_id}
                 elif type == "output":
                     dict_all = {'RequiredVariables': vars_desc, 'FlowVariablesIndex': flow_variable_index,
-                                'FlowId': flow_id, 'CountOfMustBeDefinedVars': count_req}
+                                'FlowId': flow_id, 'EnvironmentId': env_id, 'CountOfMustBeDefinedVars': count_req}
                 id_flows_list.append(dict_all)
     return id_flows_list, problem_flow_text, flag
 
@@ -315,44 +339,191 @@ def show_extra_default_params(mod_id, type, params, con):
                         units = param_info[3]
                     except Exception:
                         print("В параметре нет заголовка и единиц")
-                    dict_all = {'ParametrId': param_id, 'VariableName': varname,
+                    dict_all = {'ParameterId': param_id, 'VariableName': varname,
                                 'Title': title, 'Units': units}
                     params_list.append(dict_all)
     return params_list, problem_param_text, flag
 
 
-def show_expressions(mode_id, expressions, con):
-    expressions_list = []
-    problem_expres_text = ""
-    flag = False  # поднимается если ошибка критическая для модели
-    if expressions is None or (len(expressions) == 0):
-        problem_expres_text += ("\nСловарь %s из модели номер %d пуст" % ("expressions", mode_id))
-        # flag = True
-        return expressions_list, problem_expres_text, -1
-    for e in expressions:
-        qry = f"""select * from calculation where id={e};"""
-        with con.cursor() as cursor:
-            cursor.execute(qry)
-            result_sql = cursor.fetchall()
-        if (result_sql is None) or (len(result_sql) == 0):
-            problem_expres_text += ("\nДанные для расчетного выражения %s из модели номер %d не найдены" % (
-                e, mode_id))
-            return expressions_list, problem_expres_text, -1
-        #    flag = True
-        e_info = result_sql[0]
+######### старая версия - выдает номера групп переменных
+# def show_expressions(mode_id, expressions, con):
+#     expressions_list = []
+#     problem_expres_text = ""
+#     flag = False  # поднимается если ошибка критическая для модели
+#     if expressions is None or (len(expressions) == 0):
+#         problem_expres_text += ("\nСловарь %s из модели номер %d пуст" % ("expressions", mode_id))
+#         # flag = True
+#         return expressions_list, problem_expres_text, -1
+#     for e in expressions:
+#         qry = f"""select * from calculation where id={e};"""
+#         with con.cursor() as cursor:
+#             cursor.execute(qry)
+#             result_sql = cursor.fetchall()
+#         if (result_sql is None) or (len(result_sql) == 0):
+#             problem_expres_text += ("\nДанные для расчетного выражения %s из модели номер %d не найдены" % (
+#                 e, mode_id))
+#             return expressions_list, problem_expres_text, -1
+#         #    flag = True
+#         e_info = result_sql[0]
+#         try:
+#             calc_id = e_info[0]
+#             calc_order = e_info[1]
+#             calc_text = e_info[2]
+#             group_defined = e_info[3]
+#             group_required = e_info[4]
+#         except:
+#             return -1
+#
+#         dict_all = {'ExpressionId': calc_id, 'Order': calc_order, 'Expression': calc_text,
+#                     'DefinedVariableId': group_defined, 'NeededVariables': group_required}
+#         expressions_list.append(dict_all)
+#     return expressions_list, problem_expres_text, flag
+
+def show_expressions(model_id, expressions, con):
+    qry_all_calcs = ["select * from calculation where model_fk=%s;", [model_id]]
+    with con.cursor() as cursor:
+        cursor.execute(qry_all_calcs[0], qry_all_calcs[1])
+        result_all_calcs = cursor.fetchall()
+
+    # qry_defined_vars = ["select * from show_calc_defined where model=%s;", [model_id]]
+    # with con.cursor() as cursor:
+    #     cursor.execute(qry_defined_vars[0], qry_defined_vars[1])
+    #     result_defined_vars = cursor.fetchall()
+    #
+    # qry_required_vars = ["select * from show_calc_required where model=%s;", [model_id]]
+    # with con.cursor() as cursor:
+    #     cursor.execute(qry_required_vars[0], qry_required_vars[1])
+    #     result_required_vars = cursor.fetchall()
+
+    calc_list = []
+    for calc in result_all_calcs:
         try:
-            calc_id = e_info[0]
-            calc_order = e_info[1]
-            calc_text = e_info[2]
-            group_defined = e_info[3]
-            group_required = e_info[4]
-        except:
+            id_calc = calc[0]
+            order = calc[1]
+            exp_text = calc[2]
+            type_calc = calc[6]
+        except Exception:
+            print(f"""Ошибка в считывании result_all_calcs %s модели %s""" % (id_calc, model_id))
             return -1
 
-        dict_all = {'ExpressionId': calc_id, 'Order': calc_order, 'Expression': calc_text,
-                    'DefinedVariableId': group_defined, 'NeededVariables': group_required}
-        expressions_list.append(dict_all)
-    return expressions_list, problem_expres_text, flag
+        qry_defined_var = ["select id, param_name from show_calc_defined where c_id=%s;", [id_calc]]
+        with con.cursor() as cursor:
+            cursor.execute(qry_defined_var[0], qry_defined_var[1])
+            result_defined_vars = cursor.fetchall()
+        try:
+            def_var_id = result_defined_vars[0][0]
+            def_var_name = result_defined_vars[0][1]
+        except Exception:
+            print(f"""Ошибка в считывании result_defined_vars %s модели %s""" % (id_calc, model_id))
+            return -1
+
+        dict = {'ExpressionId': id_calc, "ExpressionType": type_calc, 'Order': order, 'Expression': exp_text,
+                'NeededVariables': [], 'DefinedVariable': [def_var_id]}
+
+        qry_required_vars = ["select c_id, array_agg(id), array_agg(param_name) "
+                             "from show_calc_required where c_id=%s group by c_id;", [id_calc]]
+        with con.cursor() as cursor:
+            cursor.execute(qry_required_vars[0], qry_required_vars[1])
+            result_required_vars = cursor.fetchall()
+        try:
+            req_var_id_list = result_required_vars[0][1]
+            req_var_name_list = result_required_vars[0][2]
+            dict = {'ExpressionId': id_calc, "ExpressionType": type_calc, 'Order': order, 'Expression': exp_text,
+                    'NeededVariables': req_var_id_list, 'DefinedVariable': [def_var_id]}
+        except Exception:
+            print(f"""В %s модели отсутствуют необходимые переменные для выражения %s""" % (model_id, id_calc))
+
+
+
+        calc_list.append(dict)
+
+    # qry = f"""select * from show_calc_defined where model={model_id};"""
+    # with con.cursor() as cursor:
+    #     cursor.execute(qry)
+    #     result_sql = cursor.fetchall()
+    # def_dict = {}
+    # calc_var_dict = {}
+    # defined_calc_dict = {}
+    # for calc in result_defined_vars:
+    #     try:
+    #         id_model = calc[0]
+    #         param_of_model = calc[1]
+    #         exp_id = calc[2]
+    #         order = calc[3]
+    #         exp = calc[4]
+    #         defined_var = calc[5]
+    #         param_type = calc[6]
+    #         par_id = calc[7]
+    #         type_calc = calc[8]
+    #     except Exception:
+    #         print("Ошибка в ключах calculation")
+    #         return -1
+    #     calc_var_dict[exp_id] = [param_of_model, defined_var]
+    #     defined_calc_dict[exp_id] = {'model': id_model,'pom_id': param_of_model,'c_id': exp_id,
+    #                          'order_calc': order,'expression_calc':exp,'param_name':defined_var,
+    #                         'param_type':param_type,'p_id':par_id,'type_calc':type_calc}
+    #     #var_info = {'name': needed_var, 'type': type, 'pom_id': param_of_model, 'p_id': par_id}
+    #     def_dict[exp_id] = param_of_model
+    #
+    #
+    # # qry = f"""select * from show_calc_required where model={model_id};"""
+    # # with con.cursor() as cursor:
+    # #     cursor.execute(qry)
+    # #     result_sql = cursor.fetchall()
+    # calc_list = []
+    # cur_calc = -1
+    # required_calc_dict = {}
+    # for calc in result_required_vars:
+    #     try:
+    #         param_of_model = calc[1]
+    #         exp_id = calc[2]
+    #         order = calc[3]
+    #         exp = calc[4]
+    #         needed_var = calc[5]
+    #         type = calc[6]
+    #         par_id = calc[7]
+    #         type_calc = calc[8]
+    #     except Exception:
+    #         print("Ошибка в ключах calculation")
+    #         return -1
+    #     if cur_calc != exp_id:  # если это новое выражение
+    #         cur_calc = exp_id
+    #         dict = {'ExpressionId': exp_id,  'NeededVariables': []}
+    #         needed_list = []
+    #         needed_list.append([param_of_model, needed_var])
+    #         dict['NeededVariables'] = needed_list
+    #         calc_list.append(dict)
+    #     else:
+    #         needed_list.append([param_of_model, needed_var])
+    #         dict['NeededVariables'] = needed_list
+    #
+    #     required_calc_dict[exp_id] = {'model': id_model, 'pom_id': param_of_model, 'c_id': exp_id,
+    #                                   'order_calc': order, 'expression_calc': exp, 'param_name': defined_var,
+    #                                   'param_type': param_type, 'p_id': par_id, 'type_calc': type_calc}
+    #
+
+    # if cur_calc != exp_id:  # если это новое выражение
+    #     cur_calc = exp_id
+    #     dev_info = def_dict[exp_id]
+    #     dict = {'ExpressionId': exp_id, "ExpressionType": type_calc, 'Order': order, 'Expression': exp,
+    #             'NeededVariables': [], 'DefinedVariable': [dev_info]}
+    #     needed_var_dict = {}
+    #     needed_list = []
+    #     #var_info = {'name': needed_var, 'type': type, 'pom_id': param_of_model, 'p_id': par_id}
+    #     needed_list.append(param_of_model)
+    #     dict['NeededVariables'] = needed_list
+    #     calc_list.append(dict)
+    # else:
+    #     #var_info = {'name': needed_var, 'type': type, 'pom_id': param_of_model, 'p_id': par_id}
+    #     needed_list.append(param_of_model)
+    #     dict['NeededVariables'] = needed_list
+
+    #print(calc_list)
+
+    # for ex in calc_list:
+    #     print(ex)
+    return calc_list
+    # return expressions_list, problem_expres_text, flag
 
 
 def info_instance(mod_id, con):
@@ -406,13 +577,14 @@ def info_instance(mod_id, con):
             dict['NeededVariables'] = needed_list
             calc_list.append(dict)
         else:
-            var_info = {'name':needed_var, 'type': type, 'pom_id': param_of_model, 'p_id': par_id}
+            var_info = {'name': needed_var, 'type': type, 'pom_id': param_of_model, 'p_id': par_id}
             needed_list.append(var_info)
             dict['NeededVariables'] = needed_list
 
     for ex in calc_list:
-        print (ex)
+        print(ex)
     return calc_list
+
 
 def create_scheme(name, con):
     qry = f"""insert into scheme (scheme_name) values ('{name}') returning id;"""
@@ -422,13 +594,15 @@ def create_scheme(name, con):
     scheme_id = result_sql[0][0]
     return scheme_id
 
-def create_topography( x, y, con):
+
+def create_topography(x, y, con):
     qry = f"""insert into topography (x, y) values ({x}, {y}) returning id;"""
     with con.cursor() as cursor:
         cursor.execute(qry)
         result_sql = cursor.fetchall()
     topog_id = result_sql[0][0]
     return topog_id
+
 
 def create_instance(model, scheme, topography, con):
     qry = f"""insert into instnc (model_fk, topography_fk, scheme_fk, instance_type) 
@@ -449,6 +623,7 @@ def insert_param_of_instnc(instance, pom, param_name, con):
     poi_id = result_sql[0][0]
     return poi_id
 
+
 def insert_scheme_flow(from_instance, to_instance, scheme, from_flow, to_flow, con):
     qry = f"""insert into scheme_flows (from_instance_fk, to_instance_fk, scheme_fk, from_flow_fk, to_flow_fk) 
         values ({from_instance}, {to_instance}, {scheme}, {from_flow}, {to_flow}) returning id;"""
@@ -457,6 +632,7 @@ def insert_scheme_flow(from_instance, to_instance, scheme, from_flow, to_flow, c
         result_sql = cursor.fetchall()
     sh_id = result_sql[0][0]
     return sh_id
+
 
 from app.db.client.client import PostgreSQLConnection
 from app.db.interaction import func_sql
