@@ -1,0 +1,84 @@
+{
+    "Title": "Конденсатор",
+    "Description": "Конденсирует пар",
+    "InputFlows": [
+        {
+            "FlowVariableIndex": 1,
+            "FlowEnvironment": "вода"
+        }
+    ],
+    "OutputFlows": [
+        {
+            "FlowVariableIndex": 2,
+            "FlowEnvironment": "вода"
+        }
+    ],
+    "DefaultParameters": [
+        {
+            "Symbol": "TEnd",
+            "Units": "Deg C",
+            "Title": "Температура на выходе конденсатора"
+        },
+        {
+            "Symbol": "dpCond",
+            "Units": "-",
+            "Title": "Падение давления на конденсаторе"
+        }
+    ],
+    "ExtraParameters": [],
+    "Expressions": [
+        {
+            "Expression": "TEnd + 273.15",
+            "DefinedVariable": "T2",
+            "Order": 1,
+            "NeededVariables": [
+                "TEnd"
+            ],
+            "ExpressionTypeName": "Expression",
+            "ExpressionType": 0
+        },
+        {
+            "Expression": "p1 * dpCond",
+            "DefinedVariable": "p2",
+            "Order": 2,
+            "NeededVariables": [
+                "p1",
+                "dpCond"
+            ],
+            "ExpressionTypeName": "Expression",
+            "ExpressionType": 0
+        },
+        {
+            "Expression": "PropSI(H ; P; p2; T; T2; Water)",
+            "DefinedVariable": "h2",
+            "Order": 3,
+            "NeededVariables": [
+                "p2",
+                "T2"
+            ],
+            "ExpressionTypeName": "PropSI",
+            "ExpressionType": 1
+        },
+        {
+            "Expression": "PropSI(S ; P; p2; T; T2; Water)",
+            "DefinedVariable": "s2",
+            "Order": 4,
+            "NeededVariables": [
+                "p2",
+                "T2"
+            ],
+            "ExpressionTypeName": "PropSI",
+            "ExpressionType": 1
+        },
+        {
+            "Expression": "G1",
+            "DefinedVariable": "G2",
+            "Order": 5,
+            "NeededVariables": [
+                "G1"
+            ],
+            "ExpressionTypeName": "Expression",
+            "ExpressionType": 0
+        }
+    ]
+}

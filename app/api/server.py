@@ -24,6 +24,7 @@ class Server:
         self.app = Flask(__name__)
         self.app.add_url_rule('/', view_func=self.get_home)
         self.app.add_url_rule('/get_models', view_func=self.get_models_info)
+        self.app.add_url_rule('/get_info_model/<string:name_model>', view_func=self.get_info_model)
         self.app.add_url_rule('/create_model', view_func=self.add_model_info, methods=['POST'])
         self.app.add_url_rule('/create_scheme', view_func=self.add_scheme_info, methods=['POST'])
         self.app.add_url_rule('/get_instance', view_func=self.get_instance_info, methods=['POST'])
@@ -53,6 +54,15 @@ class Server:
         try:
             models_info = self.db_connect.get_models_info()[0]
             return models_info, 200
+        except ModelProblems as m_problem:
+            abort(404, description=m_problem)
+
+    def get_info_model(self, name_model):
+        '''Функция для создания аналога в графовой БД. Возвращает инфо об одной модели'''
+        try:
+            models_info = open(f'C:/GitHub/PNI_server/app/db/scripts/{name_model}.json', 'r', encoding="utf-8")
+            res = models_info.read()
+            return res, 200
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
 

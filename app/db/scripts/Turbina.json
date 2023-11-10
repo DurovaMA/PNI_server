@@ -1,0 +1,112 @@
+{
+    "Title": "Турбина (V2)",
+    "Description": "Вырабатывает энергию",
+    "InputFlows": [
+        {
+            "FlowVariableIndex": 1,
+            "FlowEnvironment": "вода"
+        }
+    ],
+    "OutputFlows": [
+        {
+            "FlowVariableIndex": 2,
+            "FlowEnvironment": "вода"
+        }
+    ],
+    "DefaultParameters": [
+        {
+            "Title": "Давление на выходе",
+            "Symbol": "PEnd",
+            "Units": "Па"
+        },
+        {
+            "Title": "КПД Турбины",
+            "Symbol": "KPDoi",
+            "Units": "-"
+        }
+    ],
+    "ExtraParameters": [
+        {
+            "Title": "",
+            "Symbol": "hEndTeor",
+            "Units": ""
+        }
+    ],
+    "Expressions": [
+        {
+            "Expression": "PEnd",
+            "DefinedVariable": "p2",
+            "Order": 1,
+            "NeededVariables": [
+                "PEnd"
+            ],
+            "ExpressionTypeName": "Expression",
+            "ExpressionType": 0
+        },
+        {
+            "Expression": "s1",
+            "DefinedVariable": "s2",
+            "Order": 2,
+            "NeededVariables": [
+                "s1"
+            ],
+            "ExpressionTypeName": "Expression",
+            "ExpressionType": 0
+        },
+        {
+            "Expression": "PropSI(H ; P; p2; S; s2; Water)",
+            "DefinedVariable": "hEndTeor",
+            "Order": 3,
+            "NeededVariables": [
+                "p2",
+                "s2"
+            ],
+            "ExpressionTypeName": "PropSI",
+            "ExpressionType": 1
+        },
+        {
+            "Expression": "h1 - KPDoi*(h1-hEndTeor)",
+            "DefinedVariable": "h2",
+            "Order": 4,
+            "NeededVariables": [
+                "h1",
+                "KPDoi",
+                "hEndTeor"
+            ],
+            "ExpressionTypeName": "Expression",
+            "ExpressionType": 0
+        },
+        {
+            "Expression": "PropSI(T ; P; p2; H; h2; Water)",
+            "DefinedVariable": "T2",
+            "Order": 5,
+            "NeededVariables": [
+                "p2",
+                "h2"
+            ],
+            "ExpressionTypeName": "PropSI",
+            "ExpressionType": 1
+        },
+        {
+            "Expression": "PropSI(S ; P; p2; H; h2; Water)",
+            "DefinedVariable": "s2",
+            "Order": 6,
+            "NeededVariables": [
+                "p2",
+                "h2"
+            ],
+            "ExpressionTypeName": "PropSI",
+            "ExpressionType": 1
+        },
+        {
+            "Expression": "G1",
+            "DefinedVariable": "G2",
+            "Order": 7,
+            "NeededVariables": [
+                "G1"
+            ],
+            "ExpressionTypeName": "Expression",
+            "ExpressionType": 0
+        }
+    ]
+}

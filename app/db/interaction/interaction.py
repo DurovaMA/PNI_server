@@ -127,6 +127,82 @@ class DbConnection:
         print('\n'.join(map(str, problem_list)))
         return description_list, description_dict
 
+    def get_info_model(self):
+        '''Функция для создания аналога в графовой БД. Возвращает инфо об одной модели'''
+        qry = f"""select * from model_of_block limit 1;"""
+        with self.connection.cursor() as cursor:
+            cursor.execute(qry)
+            models = cursor.fetchall()
+        description_list = []
+        description_dict = {}
+        problem_list = []
+
+        if len(models) == 0:
+            problem_list.append("Моделей в базе нет")
+        for m in models:
+            problem_text = ""
+            print(m)
+            model_id = m[0]
+            title = m[1]
+            description = m[2]
+            input_flows = m[4]
+            output_flows = m[5]
+            default_params = m[6]
+            extra_params = m[7]
+            expressions = m[8]
+
+            critical_flag = False
+
+            input_flows_list, problem_flow, flag_flow = func_sql.show_flows \
+                (model_id, "input", input_flows, self.connection)
+            problem_text += problem_flow
+            critical_flag += flag_flow
+            output_flows_list, problem_flow, flag_flow = func_sql.show_flows \
+                (model_id, "output", output_flows, self.connection)
+            problem_text += problem_flow
+            critical_flag += flag_flow
+
+            if extra_params != []:
+                extra_params_list, problem_params, flag_params = func_sql.show_extra_default_params \
+                    (model_id, "extra", extra_params, self.connection)
+            else:
+                extra_params_list = []
+                problem_params = ("в модели %s нет дополнительных параметров" % (model_id))
+                flag_params = 0
+            problem_text += problem_params
+            critical_flag += flag_params
+
+            if default_params != []:
+                default_params_list, problem_params, flag_params = func_sql.show_extra_default_params \
+                    (model_id, "default", default_params, self.connection)
+            else:
+                default_params_list = []
+                problem_params = ("в модели %s нет параметров по умолчанию" % (model_id))
+                flag_params = 0
+
+            problem_text += problem_params
+            critical_flag += flag_params
+
+
+            expressions_list = func_sql.show_expressions \
+                (model_id, expressions, self.connection)
+            #problem_text += problem_expressions
+            # critical_flag += flag_expression
+
+            if (critical_flag > 0) or ((len(input_flows_list) < 1) and (len(output_flows_list) < 1)):
+                problem_text += ("\nМодель номер %d не будет отображена\n" % model_id)
+            else:
+                model_desc = {'ModelId': model_id, 'Title': title, 'Description': description,
+                              'InputFlows': input_flows_list, 'OutputFlows': output_flows_list,
+                              'DefaultParameters': default_params_list, 'CustomParameters': extra_params_list,
+                              'Expressions': expressions_list}
+                description_list.append(model_desc)
+                description_dict[model_id] = model_desc
+            problem_list.append(problem_text)
+
+        print('\n'.join(map(str, problem_list)))
+        return description_list, description_dict
+
     def get_info_instance(self, model_id):
         instance_info = func_sql.info_instance(model_id, self.connection)
         return instance_info
