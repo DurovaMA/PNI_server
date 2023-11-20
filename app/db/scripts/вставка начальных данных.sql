@@ -1,12 +1,12 @@
 INSERT INTO public.parametr (id, title,symbol,units,param_type) VALUES
-	 (1, 'Давление','p','Pa','base'),
-	 (2, 'Температура','T','K','base'),
-	 (3, 'Энтальпия','h','J','base'),
+	 (1, 'Давление','p','Па','base'),
+	 (2, 'Температура','T','К','base'),
+	 (3, 'Энтальпия','h','Дж/кг','base'),
 	-- ('Давление на выходе','pOut','МПа','default'),
 	-- ('Нагрев насоса','Ti1','Deg','custom'),
 	 (4, 'Тепловая мощность','Q','Вт','base'),
-	 (5, 'Полная мощность','s','ВА','base'),
-	 (6, 'Некое обозначение','G','Вт','base');
+	 (5, 'Энтропия','s','Дж/кг*К','base'),
+	 (6, 'Расход','G','кг/c','base');
 SELECT setval('parametr_id_seq', max(id)) FROM parametr;
 
 INSERT INTO public.environment (id, type_of_environment) VALUES
