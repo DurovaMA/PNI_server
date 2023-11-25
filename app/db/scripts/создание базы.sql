@@ -169,7 +169,7 @@ CREATE TABLE public.calculation (
 	defined_param_fk int4 NULL,
 	required_params_fk int4 NULL,
 	model_fk int4 not NULL,
-	type_calc public."types_expression" NOT NULL,
+	type_calc int4 NOT NULL,
 	CONSTRAINT calculation_pk PRIMARY KEY (id),
 	CONSTRAINT calculation_fk FOREIGN KEY (defined_param_fk) REFERENCES public.group_par(id) ON DELETE CASCADE ON UPDATE CASCADE,
 	CONSTRAINT calculation_fk_1 FOREIGN KEY (required_params_fk) REFERENCES public.group_par(id) ON DELETE CASCADE ON UPDATE CASCADE,
