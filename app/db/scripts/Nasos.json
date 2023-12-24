@@ -4,7 +4,7 @@
     "InputFlows": [
         {
             "FlowVariableIndex": 1,
-            "FlowEnvironment": "вода"
+            "FlowEnvironment": 1
         }
     ],
     "OutputFlows": [

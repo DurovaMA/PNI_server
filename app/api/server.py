@@ -24,16 +24,34 @@ class Server:
         self.app = Flask(__name__)
         self.app.add_url_rule('/', view_func=self.get_home)
         self.app.add_url_rule('/get_models', view_func=self.get_models_info)
+        self.app.add_url_rule('/get_model_catalog', view_func=self.get_model_catalog_info)
         self.app.add_url_rule('/get_info_model/<string:name_model>', view_func=self.get_info_model)
         self.app.add_url_rule('/create_model', view_func=self.add_model_info, methods=['POST'])
         self.app.add_url_rule('/create_scheme', view_func=self.add_scheme_info, methods=['POST'])
         self.app.add_url_rule('/get_instance', view_func=self.get_instance_info, methods=['POST'])
         self.app.add_url_rule('/get_envs', view_func=self.get_envs_info)
 
+
         self.app.add_url_rule('/test_zapros', view_func=self.test, methods=['POST'])
+
+        #удалить - для демонстрации сравнения реляционной базы с графовой
+        self.app.add_url_rule('/insert_relations', view_func=self.insert_relations)
+        self.app.add_url_rule('/insert_users', view_func=self.insert_users)
+
 
         self.app.register_error_handler(404, self.page_not_found)
 
+    def insert_users(self):
+        inserted = self.db_connect.insert_users()
+        print(inserted)
+
+        return f'Success added', 201
+    def insert_relations(self):
+
+        inserted = self.db_connect.insert_relations()
+        print(inserted)
+
+        return f'Success added', 201
     def test(self):
         request_body = dict(request.json)
         print(request_body)
@@ -51,8 +69,16 @@ class Server:
         return 'Hello, api server!'
 
     def get_models_info(self):
+        '''Возвращает json со всеми моделями'''
         try:
             models_info = self.db_connect.get_models_info()[0]
+            return models_info, 200
+        except ModelProblems as m_problem:
+            abort(404, description=m_problem)
+    def get_model_catalog_info(self):
+        '''Возвращает json со всеми моделями плюс каталогами'''
+        try:
+            models_info = self.db_connect.get_model_catalog_info()[0]
             return models_info, 200
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
@@ -64,7 +90,7 @@ class Server:
             res = models_info.read()
             return res, 200
         except ModelProblems as m_problem:
-            abort(404, description=m_problem)
+            abort(400, description=m_problem)
 
     def get_envs_info(self):
         try:
@@ -94,7 +120,7 @@ class Server:
             calculations=model_info['Expressions']
         )
         if model_id == -1:
-            return f'Модель не может быть добавлена', 201
+            return f'Модель не может быть добавлена', 400
         else:
             return f'Success added {model_id}', 201
 
@@ -106,7 +132,7 @@ class Server:
             flows=scheme_info['Flows']
         )
         if scheme_id == -1:
-            return f'Схема не может быть добавлена', 201
+            return f'Схема не может быть добавлена', 400
         else:
             return f'Success added {scheme_id}', 201
 

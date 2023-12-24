@@ -12,6 +12,8 @@ DROP TABLE public.instnc  CASCADE;
 DROP TABLE public.scheme  CASCADE;
 DROP TABLE public.scheme_flows  CASCADE;
 DROP TABLE public.topography  CASCADE;
+DROP TABLE public.directory  CASCADE;
+DROP TABLE public.directory_model  CASCADE;
 
 DROP TYPE public."types_group";
 DROP TYPE public."types_flow";
@@ -248,3 +250,24 @@ CREATE TABLE public.scheme_flows (
     );
 COMMENT ON TABLE public.scheme_flows IS 'Поток в схеме. Соединяет два экземпляра блока. Для первого указывается один из его выходных потоков, для второго - входной';
 
+
+-- DROP TABLE public.directory;
+CREATE TABLE public.directory (
+	id serial4 NOT NULL,
+	dir_name varchar NOT NULL,
+	parent_level_fk int4  NULL,
+	CONSTRAINT directory_pk PRIMARY KEY (id),
+	CONSTRAINT directory_fk FOREIGN KEY (parent_level_fk) REFERENCES public.directory(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+COMMENT ON TABLE public.directory IS 'Каталоги с указанием родительского для каждого';
+
+-- DROP TABLE public.directory_model;
+CREATE TABLE public.directory_model (
+	id serial4 NOT NULL,
+	model_fk int4 NOT NULL,
+	directory_fk int4 NOT NULL,
+	CONSTRAINT directory_model_pk PRIMARY KEY (id),
+	CONSTRAINT directory_model_fk FOREIGN KEY (model_fk) REFERENCES public.model_of_block(id) ON DELETE CASCADE ON UPDATE CASCADE,
+	CONSTRAINT directory_model_fk_1 FOREIGN KEY (directory_fk) REFERENCES public.directory(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+COMMENT ON TABLE public.directory_model IS 'К какому каталогу относится каждая модель';
