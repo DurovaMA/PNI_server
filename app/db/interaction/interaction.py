@@ -1,70 +1,7 @@
-from app.db.client.client import PostgreSQLConnection
-#from app.db.interaction import func_sql
-from app.db.exceptions import ParametrNotFoundException, UserNotFoundException, ModelProblems
-from app.db.models.models import Base, User, Parametr, Environment
+from app.db.interaction import func_sql, func_sql_show, func_sql_insert
+from app.db.exceptions import ModelProblems
 import psycopg2
-import json
-
-
-class DbInteraction:
-
-    def __init__(self, host, port, user, password, db_name):
-        self.postgresql_connection = PostgreSQLConnection(
-            host=host,
-            user=user,
-            port=port,
-            password=password,
-            db_name=db_name
-        )
-        # self.postgresql_connection.autocommit = True
-
-        self.engine = self.postgresql_connection.connection.engine
-
-
-    def add_param_info(self, parametr_id, title, symbol, unit, type):
-        param = Parametr(
-            id=parametr_id,
-            title=title,
-            symbol=symbol,
-            units=unit,
-            param_type=type
-        )
-        try:
-            self.postgresql_connection.session.add(param)
-        except:
-            self.postgresql_connection.session.rollback()
-            raise
-        else:
-            self.postgresql_connection.session.commit()
-        return self.get_parametr_info(parametr_id)
-
-    def get_parametr_info(self, parametr_id):
-        par = self.postgresql_connection.session.query(Parametr).filter_by(id=parametr_id).first()
-        if par:
-            self.postgresql_connection.session.expire_all()
-            return {'title': par.title, 'symbol': par.symbol, 'units': par.units, 'param_type': par.param_type}
-        else:
-            raise ParametrNotFoundException('Parameter not found!')
-
-    def edit_parametr_info(self, parametr_id, new_parametrid=None, new_title=None, new_symbol=None, new_unit=None,
-                           new_type=None):
-        par = self.postgresql_connection.session.query(Parametr).filter_by(id=parametr_id).first()
-        if par:
-            if new_parametrid is not None:
-                par.id = new_parametrid
-            if new_title is not None:
-                par.title = new_title
-            if new_symbol is not None:
-                par.symbol = new_symbol
-            if new_unit is not None:
-                par.units = new_unit
-            if new_type is not None:
-                par.param_type = new_type
-
-            self.postgresql_connection.session.commit()
-            return self.get_parametr_info(parametr_id if new_parametrid is None else new_parametrid)
-        else:
-            raise ParametrNotFoundException('Parameter not found!')
+import random
 
 
 class DbConnection:
@@ -76,6 +13,73 @@ class DbConnection:
             database=database
         )
         self.connection.autocommit = True
+
+
+    def insert_users(self):
+
+        list = ['Горбачев Богдан', 'Иванов Максим', 'Марков Дмитрий', 'Кузин Дмитрий', 'Жуков Денис', 'Павлов Ярослав',
+                'Федорова Виктория', 'Андреева Ульяна', 'Савельева Екатерина', 'Матвеева Амина', 'Сидоров Демид',
+                'Семенова Ольга', 'Романова Арина', 'Николаева Валерия', 'Морозова Виктория', 'Карпова Есения',
+                'Кудрявцев Фёдор', 'Васильева Марьяна', 'Калинина Евгения', 'Давыдова Мария', 'Степанов Павел',
+                'Мухина Арина', 'Комарова Надежда', 'Дмитриев Илья', 'Коновалова Полина', 'Афанасьев Дамир',
+                'Аксенова Анастасия', 'Архипов Владимир', 'Шубин Егор', 'Рожкова Ксения', 'Ларионов Сергей',
+                'Чижов Егор', 'Дементьев Дмитрий', 'Воробьева Алия', 'Олейникова Ксения', 'Матвеев Василий',
+                'Тарасов Марк', 'Булгакова Анастасия', 'Кочетова Софья', 'Романова Ульяна', 'Козловская Арина',
+                'Сазонов Дмитрий', 'Токарев Тимофей', 'Исаков Михаил', 'Кравцова Василиса', 'Климова Ариана',
+                'Савин Михаил', 'Александрова Олеся', 'Кравцова Ксения', 'Куликов Василий', 'Минаева Мария',
+                'Борисов Артём', 'Емельянова Алиса', 'Громова Мария', 'Тихонов Ярослав', 'Матвеев Борис',
+                'Гришин Арсений', 'Васильев Иван', 'Горлов Александр', 'Осипова Анастасия', 'Колесников Максим',
+                'Одинцова Ника', 'Елисеева Милана', 'Копылов Матвей', 'Новиков Вадим', 'Марков Марк', 'Антонова София',
+                'Круглова Вероника', 'Козловский Даниил', 'Пугачев Евгений', 'Прокофьев Антон', 'Степанова Кристина',
+                'Воробьева Есения', 'Самойлова Дарья', 'Макаров Демид', 'Власов Даниил', 'Филиппов Максим',
+                'Матвеев Лев', 'Митрофанов Роман', 'Широков Тимофей', 'Овчинников Алексей', 'Мешкова Олеся',
+                'Носова Ева', 'Софронова Виктория', 'Иванова Эмилия', 'Баранов Егор', 'Рыбакова Валерия', 'Белов Максим',
+                'Рыбакова Таисия', 'Крылов Илья', 'Бочаров Фёдор', 'Васильева Анастасия', 'Герасимов Савелий',
+                'Крылов Роман', 'Алексеева Сафия', 'Владимирова Таисия', 'Захаров Николай', 'Новиков Максим',
+                'Морозов Александр', 'Коротков Даниил']
+        for pers in list:
+            pers = pers.split(' ')
+            name = pers[1]
+            second_name = pers[0]
+            age = random.randint(15, 100)
+            qry = f"""INSERT INTO public."user" ("name", second_name, age) values
+                ( '{name}', '{second_name}', {age});"""
+            with self.connection.cursor() as cursor:
+                cursor.execute(qry)
+                #result = cursor.fetchall()
+        return 'OK'
+
+    def insert_relations(self):
+        # qry = f"""Select id from public."user" ;"""
+        # with self.connection.cursor() as cursor:
+        #     cursor.execute(qry)
+        #     inserted = cursor.fetchall()
+        # users_id = []
+        # for ins in inserted:
+        #     users_id.append(ins[0])
+        #
+        # #вставка друзей
+        # for i in range(0, 40):
+        #     first = random.choice(users_id)
+        #     second = random.choice(users_id)
+        #     while first == second:
+        #         second = random.choice(users_id)
+        #     qry = f"""INSERT INTO public.relation ("user 1", "user 2", type_relation) values
+        #             ( {first}, {second}, 'friend'),
+        #             ( {second}, {first}, 'friend');"""
+        #     with self.connection.cursor() as cursor:
+        #         cursor.execute(qry)
+        qry = f"""INSERT INTO public.relation ("user 1", "user 2", type_relation) values 
+                             ( 2, 39, 'friend'),
+                             ( 39, 2, 'friend'),
+                             ( 7, 2, 'friend'),
+                             ( 2, 7, 'friend'),
+                             ( 7, 10, 'friend'),
+                             ( 10, 7, 'friend')
+                                ;"""
+        with self.connection.cursor() as cursor:
+                 cursor.execute(qry)
+        return 'users_id'
 
     def get_envs_info(self):
 
@@ -93,7 +97,6 @@ class DbConnection:
             cursor.execute(qry)
             envs = cursor.fetchall()
 
-
         for parametr in parametrs:
             param_list.append({'ParameterId': parametr[0], 'Title': parametr[1],
                                'Symbol': parametr[2], 'Units': parametr[3]})
@@ -106,23 +109,100 @@ class DbConnection:
                 params = cursor.fetchall()
             p_of_e = []  # список параметров текущей среды
             for p in params:
-                p_of_e.append( p[0])
-            env_list.append({'FlowEnviromentId': e[0], 'FlowEnvironmentType': e[1], 'BaseParametres': p_of_e})
+                p_of_e.append(p[0])
+            env_list.append({'FlowEnvironmentId': e[0], 'FlowEnvironmentType': e[1], 'BaseParameters': p_of_e})
 
-        request_dict["BaseParametres"] = param_list
+        request_dict["BaseParameters"] = param_list
         request_dict["FlowEnvironments"] = env_list
 
         if request_dict:
             return request_dict
-        else:
-            raise ParametrNotFoundException('Environments not found!')
+        # else:
+        #    raise ParametrNotFoundException('Environments not found!')
 
+
+    def get_model_catalog_info(self):
+        qry_all_directories = f"""select * from directory d ;"""
+        with self.connection.cursor() as cursor:
+            cursor.execute(qry_all_directories)
+            all_directories = cursor.fetchall()
+
+        description_list = []
+        description_dict = {}
+        problem_list = []
+
+        if len(all_directories) == 0:
+            problem_list.append("Каталогов в базе нет")
+        for m in all_directories:
+            problem_text = ""
+            print(m)
+            model_id = m[0]
+            title = m[1]
+            description = m[2]
+            input_flows = m[4]
+            output_flows = m[5]
+            default_params = m[6]
+            extra_params = m[7]
+            expressions = m[8]
+
+            critical_flag = False
+
+            input_flows_list, problem_flow, flag_flow = func_sql_show.show_flows \
+                (model_id, "input", input_flows, self.connection)
+            problem_text += problem_flow
+            critical_flag += flag_flow
+            output_flows_list, problem_flow, flag_flow = func_sql_show.show_flows \
+                (model_id, "output", output_flows, self.connection)
+            problem_text += problem_flow
+            critical_flag += flag_flow
+
+            if extra_params != []:
+                extra_params_list, problem_params, flag_params = func_sql_show.show_extra_default_params \
+                    (model_id, "extra", extra_params, self.connection)
+            else:
+                extra_params_list = []
+                problem_params = ("в модели %s нет дополнительных параметров" % (model_id))
+                flag_params = 0
+            problem_text += problem_params
+            critical_flag += flag_params
+
+            if default_params != []:
+                default_params_list, problem_params, flag_params = func_sql_show.show_extra_default_params \
+                    (model_id, "default", default_params, self.connection)
+            else:
+                default_params_list = []
+                problem_params = ("в модели %s нет параметров по умолчанию" % (model_id))
+                flag_params = 0
+
+            problem_text += problem_params
+            critical_flag += flag_params
+
+
+            expressions_list = func_sql_show.show_expressions \
+                (model_id, expressions, self.connection)
+            #problem_text += problem_expressions
+            # critical_flag += flag_expression
+
+            if (critical_flag > 0) or ((len(input_flows_list) < 1) and (len(output_flows_list) < 1)):
+                problem_text += ("\nМодель номер %d не будет отображена\n" % model_id)
+            else:
+                model_desc = {'ModelId': model_id, 'Title': title, 'Description': description,
+                              'InputFlows': input_flows_list, 'OutputFlows': output_flows_list,
+                              'DefaultParameters': default_params_list, 'CustomParameters': extra_params_list,
+                              'Expressions': expressions_list}
+                description_list.append(model_desc)
+                description_dict[model_id] = model_desc
+            problem_list.append(problem_text)
+
+        print('\n'.join(map(str, problem_list)))
+        return description_list, description_dict
     def get_models_info(self):
         qry = f"""select * from model_of_block;"""
         with self.connection.cursor() as cursor:
             cursor.execute(qry)
             models = cursor.fetchall()
         description_list = []
+        description_dict = {}
         problem_list = []
 
         if len(models) == 0:
@@ -130,227 +210,324 @@ class DbConnection:
         for m in models:
             problem_text = ""
             print(m)
-            id = m[0]
+            model_id = m[0]
             title = m[1]
             description = m[2]
             input_flows = m[4]
             output_flows = m[5]
             default_params = m[6]
-            all_params = m[7]
+            extra_params = m[7]
             expressions = m[8]
 
-            input_flows_list = []
-            output_flows_list = []
-            all_params_list = []
-            expressions_text = []
-            default_params_list = []
+            critical_flag = False
+
+            input_flows_list, problem_flow, flag_flow = func_sql_show.show_flows \
+                (model_id, "input", input_flows, self.connection)
+            problem_text += problem_flow
+            critical_flag += flag_flow
+            output_flows_list, problem_flow, flag_flow = func_sql_show.show_flows \
+                (model_id, "output", output_flows, self.connection)
+            problem_text += problem_flow
+            critical_flag += flag_flow
+
+            if extra_params != []:
+                extra_params_list, problem_params, flag_params = func_sql_show.show_extra_default_params \
+                    (model_id, "extra", extra_params, self.connection)
+            else:
+                extra_params_list = []
+                problem_params = ("в модели %s нет дополнительных параметров" % (model_id))
+                flag_params = 0
+            problem_text += problem_params
+            critical_flag += flag_params
+
+            if default_params != []:
+                default_params_list, problem_params, flag_params = func_sql_show.show_extra_default_params \
+                    (model_id, "default", default_params, self.connection)
+            else:
+                default_params_list = []
+                problem_params = ("в модели %s нет параметров по умолчанию" % (model_id))
+                flag_params = 0
+
+            problem_text += problem_params
+            critical_flag += flag_params
 
 
-            if input_flows == None:
-                problem_text += ("\n Словарь %s из модели номер %d пуст" % ("input_flows", id))
-            else:
-                for i_f in input_flows:
-                    qry = f"""select * from flow where id={i_f};"""
-                    with self.connection.cursor() as cursor:
-                        cursor.execute(qry)
-                        flow_info = cursor.fetchall()[0]
-                        if flow_info == None:
-                            problem_text += ("\nДанные для входного потока %s из модели номер %d не найдены" % (i_f, id))
-                        else:
-                            try:
-                                dict_all = {'id': flow_info[0], 'FlowVariableIndex': flow_info[1], 'FlowEnviroment': flow_info[3]}
-                            except Exception:
-                                problem_text += ("\n Ошибка индекса для %s из модели номер %d " % (flow_info, id))
-                            else:
-                                input_flows_list.append(dict_all)
+            expressions_list = func_sql_show.show_expressions \
+                (model_id, expressions, self.connection)
+            #problem_text += problem_expressions
+            # critical_flag += flag_expression
 
-            if output_flows == None:
-                problem_text += ("\nСловарь %s из модели номер %d пуст" % ("output_flows", id))
+            if (critical_flag > 0) or ((len(input_flows_list) < 1) and (len(output_flows_list) < 1)):
+                problem_text += ("\nМодель номер %d не будет отображена\n" % model_id)
             else:
-                for o_f in output_flows:
-                    qry = f"""select * from flow where id={o_f};"""
-                    with self.connection.cursor() as cursor:
-                        cursor.execute(qry)
-                        flow_info = cursor.fetchall()[0]
-                        if flow_info == None:
-                            problem_text += ("\nДанные для выходного потока %s из модели номер %d не найдены" % (o_f, id))
-                        else:
-                            try:
-                                dict_all = {'id': flow_info[0], 'FlowVariableIndex': flow_info[1], 'FlowEnviroment': flow_info[3]}
-                            except Exception:
-                                problem_text += ("\nОшибка индекса для %s из модели номер %d " % (flow_info, id))
-                            else:
-                                output_flows_list.append(dict_all)
-
-            if all_params == None:
-                problem_text += ("\nСловарь %s из модели номер %d пуст" % ("all_params", id))
-            else:
-                for p in all_params:
-                    qry = f"""select * from show_parameters_info where id={p};"""
-                    with self.connection.cursor() as cursor:
-                        cursor.execute(qry)
-                        param_info = cursor.fetchall()[0]
-                        if param_info == None:
-                            problem_text += ("Данные для параметра %s из модели номер %d не найдены" % (p, id))
-                        else:
-                            try:
-                                dict_all = {'id': param_info[0], 'name': param_info[1], 'value': param_info[2],
-                                        'title': param_info[3], 'units': param_info[4]}
-                            except Exception:
-                                raise ModelProblems("Ошибка индекса для %s из модели номер %d " % (param_info, id))
-                            else:
-                                all_params_list.append(dict_all)
-
-            if default_params == None:
-                problem_text += ("\nСловарь %s из модели номер %d пуст" % ("default_params_list", id))
-            else:
-                for d_p in default_params:
-                    qry = f"""select * from show_parameters_info where id={d_p};"""
-                    with self.connection.cursor() as cursor:
-                        cursor.execute(qry)
-                        param_info = cursor.fetchall()[0]
-                        if param_info == None:
-                            problem_text += ("Данные для параметра %s из модели номер %d не найдены" % (d_p, id))
-                        else:
-                            try:
-                                dict_all = {'id': param_info[0], 'name': param_info[1], 'value': param_info[2],
-                                        'title': param_info[3], 'units': param_info[4]}
-                            except Exception:
-                                raise ModelProblems("Ошибка индекса для %s из модели номер %d " % (param_info, id))
-                            else:
-                                default_params_list.append(dict_all)
-
-            if expressions == None:
-                problem_text += ("\nСловарь %s из модели номер %d пуст" % ("expressions", id))
-            else:
-                for e in expressions:
-                    qry = f"""select * from calculation where id={e};"""
-                    with self.connection.cursor() as cursor:
-                        cursor.execute(qry)
-                        e_info = cursor.fetchall()[0]
-                        if e_info == None:
-                            problem_text += ("\nДанные для расчетного выражения %s из модели номер %d не найдены" % (e, id))
-                        else:
-                            try:
-                                dict_all = {'id': e_info[0], 'Order': e_info[1], 'Expression': e_info[2],
-                                        'DefinedVariableId': e_info[3], 'NeededVariables': e_info[4]}
-                            except Exception:
-                                raise ModelProblems("Ошибка индекса для %s из модели номер %d " % (e_info, id))
-                            else:
-                                expressions_text.append(dict_all)
-            if ((input_flows ==None) or (output_flows ==None) or (default_params_list ==None)
-                or (all_params_list ==None) or (expressions_text ==None)):
-                problem_text += ("\nМодель номер %d не будет отображена\n" % id)
-            else:
-                model_desc = {'Id': id, 'Title': title, 'Description': description,
-                                         'InputFlows': input_flows_list, 'OutputFlows': output_flows_list,
-                                         'DefaultParameters': default_params_list, 'AllParameters': all_params_list,
-                                         'Expressions': expressions_text}
+                model_desc = {'ModelId': model_id, 'Title': title, 'Description': description,
+                              'InputFlows': input_flows_list, 'OutputFlows': output_flows_list,
+                              'DefaultParameters': default_params_list, 'CustomParameters': extra_params_list,
+                              'Expressions': expressions_list}
                 description_list.append(model_desc)
-
-
+                description_dict[model_id] = model_desc
             problem_list.append(problem_text)
 
         print('\n'.join(map(str, problem_list)))
-        return description_list
+        return description_list, description_dict
 
-
-
-    def create_model(self, model_description, model_title, in_flows, out_flows, default_params, extra_params, calculations,
-                     model_id=None):
-        print(model_description)
-        print(model_title)
-        print(in_flows)
-        print(out_flows)
-        print(default_params)
-        print(extra_params)
-        print(calculations)
-
-
-
-        id_model = func_sql.create_new_model(model_title, model_description, self.connection)
-
-        id_group_extr, id_extra_params_list = func_sql.add_extra_def_params('extra_params', 'extra', id_model, extra_params, self.connection)
-        id_group_def, id_default_params_list = func_sql.add_extra_def_params('default_params', 'default', id_model, extra_params, self.connection)
-
-        id_flows_model_input = func_sql.add_flow(id_model, 'input', in_flows, self.connection)
-        id_flows_model_output = func_sql.add_flow(id_model, 'output', in_flows, self.connection)
-
-        flows_model = id_flows_model_input + id_flows_model_output
-
-
-        id_flow_params_list = []
-        # запись в модель переменных от всех потоков
-        for flow in flows_model:
-            qry = f"""select add_params_from_flow({id_model}, {flow});"""
-            with self.connection.cursor() as cursor:
-                cursor.execute(qry)
-                id_flow_params = cursor.fetchall()[0][0]
-                id_flow_params_list = id_flow_params_list + id_flow_params
-
-        id_calcs_list = []
-        for calculation in calculations:
-            order_calc = calculation['Order']
-            express_calc = calculation['Expression']
-            defined_param = calculation['DefinedVariable']
-            required_params_list = calculation['NeededVariables']
-            qry = f"""select add_calculation ({id_model}, {order_calc}, '{express_calc}');"""
-            with self.connection.cursor() as cursor:
-                cursor.execute(qry)
-                id_calc = cursor.fetchall()[0][0]
-                id_calcs_list.append(id_calc)
-            qry2 = f"""select defined_param_fk, required_params_fk from calculation c where id={id_calc};"""
-            with self.connection.cursor() as cursor:
-                cursor.execute(qry2)
-                params = cursor.fetchall()[0]
-                required_params_group = params[1]
-                defined_params_group = params[0]
-
-
-            qry3 = f"""select insert_calc_param({id_model}, '{defined_param}', {id_calc}, {defined_params_group});"""
-            with self.connection.cursor() as cursor:
-                cursor.execute(qry3)
-                cursor.fetchall()[0][0]
-            for req in required_params_list:
-                qry4 = f"""select insert_calc_param({id_model}, '{req}', {id_calc}, {required_params_group});"""
-                with self.connection.cursor() as cursor:
-                    cursor.execute(qry4)
-                    cursor.fetchall()[0][0]
-
-
-        all_params_list = id_extra_params_list + id_default_params_list + id_flow_params_list
-        qry = f"""update model_of_block set input_flows=array{id_flows_model_input},
-        output_flows=array{id_flows_model_output}, default_params =array{id_default_params_list},
-        all_params =array{all_params_list},  expressions =array{id_calcs_list}
-        where id = {id_model};"""
+    def get_info_model(self):
+        '''Функция для создания аналога в графовой БД. Возвращает инфо об одной модели'''
+        qry = f"""select * from model_of_block limit 1;"""
         with self.connection.cursor() as cursor:
             cursor.execute(qry)
+            models = cursor.fetchall()
+        description_list = []
+        description_dict = {}
+        problem_list = []
 
-        if all_params_list:
+        if len(models) == 0:
+            problem_list.append("Моделей в базе нет")
+        for m in models:
+            problem_text = ""
+            print(m)
+            model_id = m[0]
+            title = m[1]
+            description = m[2]
+            input_flows = m[4]
+            output_flows = m[5]
+            default_params = m[6]
+            extra_params = m[7]
+            expressions = m[8]
+
+            critical_flag = False
+
+            input_flows_list, problem_flow, flag_flow = func_sql_show.show_flows \
+                (model_id, "input", input_flows, self.connection)
+            problem_text += problem_flow
+            critical_flag += flag_flow
+            output_flows_list, problem_flow, flag_flow = func_sql_show.show_flows \
+                (model_id, "output", output_flows, self.connection)
+            problem_text += problem_flow
+            critical_flag += flag_flow
+
+            if extra_params != []:
+                extra_params_list, problem_params, flag_params = func_sql_show.show_extra_default_params \
+                    (model_id, "extra", extra_params, self.connection)
+            else:
+                extra_params_list = []
+                problem_params = ("в модели %s нет дополнительных параметров" % (model_id))
+                flag_params = 0
+            problem_text += problem_params
+            critical_flag += flag_params
+
+            if default_params != []:
+                default_params_list, problem_params, flag_params = func_sql_show.show_extra_default_params \
+                    (model_id, "default", default_params, self.connection)
+            else:
+                default_params_list = []
+                problem_params = ("в модели %s нет параметров по умолчанию" % (model_id))
+                flag_params = 0
+
+            problem_text += problem_params
+            critical_flag += flag_params
+
+
+            expressions_list = func_sql_show.show_expressions \
+                (model_id, expressions, self.connection)
+            #problem_text += problem_expressions
+            # critical_flag += flag_expression
+
+            if (critical_flag > 0) or ((len(input_flows_list) < 1) and (len(output_flows_list) < 1)):
+                problem_text += ("\nМодель номер %d не будет отображена\n" % model_id)
+            else:
+                model_desc = {'ModelId': model_id, 'Title': title, 'Description': description,
+                              'InputFlows': input_flows_list, 'OutputFlows': output_flows_list,
+                              'DefaultParameters': default_params_list, 'CustomParameters': extra_params_list,
+                              'Expressions': expressions_list}
+                description_list.append(model_desc)
+                description_dict[model_id] = model_desc
+            problem_list.append(problem_text)
+
+        print('\n'.join(map(str, problem_list)))
+        return description_list, description_dict
+
+    def get_info_instance(self, model_id):
+        instance_info = func_sql_show.info_instance(model_id, self.connection)
+        return instance_info
+
+    def create_model(self, model_description, model_title, in_flows, out_flows, default_params, extra_params,
+                     calculations):
+        # массив переменных модели, фигурирующих в ней от потоков
+        id_flow_params_list = []
+
+        all_params = default_params + extra_params
+        list_params = []
+        for param in all_params:
+            symbol = param['Symbol']
+            list_params.append(symbol)
+        visited = set()
+        dup = [x for x in list_params if x in visited or (visited.add(x) or False)]
+        if dup != []:
+            print("Дублируются параметры: ", dup)  # [1, 5, 1]
+            return -1
+
+        # dup = func_sql.check_dup(model_title, model_description, self.connection)
+
+        # создание записи в таблице model_of_block
+        id_model = func_sql_insert.create_new_model(model_title, model_description, self.connection)
+
+        # создание группы дополнительных параметров в таблице group_par и записей о ней в таблицах parametr,
+        # parametr_group, param_of_model и all_inclusions.
+        # Возвращает идентификатор группы из таблицы group_par и массив идентификаторов в таблице param_of_model
+        id_group_extr, id_extra_params_list = func_sql_insert.add_extra_def_params('extra_params', 'extra', id_model,
+                                                                            extra_params, self.connection)
+        # Аналогично для параметров по умолчанию
+        id_group_def, id_default_params_list = func_sql_insert.add_extra_def_params('default_params', 'default', id_model,
+                                                                             default_params, self.connection)
+        if id_default_params_list == -1 or id_extra_params_list == -1:
+            func_sql_insert.delete_model(id_model, self.connection)
+            return -1
+        if id_group_extr == 0 or id_extra_params_list == 0:
+            print("нет extra параметров")
+
+        # Создает записи о входных и выходных потоках, возвращает массивы идентификаторов из таблицы flow
+        id_flows_model_input = func_sql_insert.add_flow(id_model, 'input', in_flows, self.connection)
+        id_flows_model_output = func_sql_insert.add_flow(id_model, 'output', out_flows, self.connection)
+
+        if id_flows_model_input == -1 or id_flows_model_output == -1:
+            func_sql_insert.delete_model(id_model, self.connection)
+            return -1
+
+        # Объединяет массивы входных и выходных потоков
+        flows_model = id_flows_model_input + id_flows_model_output
+
+        for flow in flows_model:
+            id_flow_params = func_sql_insert.add_params_from_flow(id_model, flow, self.connection)
+            if id_flow_params == -1:
+                func_sql_insert.delete_model(id_model, self.connection)
+                return -1
+            id_flow_params_list = id_flow_params_list + id_flow_params
+
+        # массив рассчетных выражений модели
+        id_calcs_list = func_sql_insert.add_calc(id_model, calculations, self.connection)
+
+        if id_calcs_list == -1:
+            func_sql_insert.delete_model(id_model, self.connection)
+            return -1
+
+        if id_calcs_list != -1 and id_extra_params_list != -1 and id_default_params_list != -1 and id_flow_params_list != -1:
             print('Добавлена модель номер ', id_model)
+            len_in_flows = len(id_flows_model_input)
+            len_out_flows = len(id_flows_model_output)
+            len_def_params = len(id_default_params_list)
+            len_ext_params = len(id_extra_params_list)
+            len_calcs = len(id_calcs_list)
+            qry = f"""update model_of_block set input_flows=ARRAY{id_flows_model_input}::integer[{len_in_flows}],
+                    output_flows=ARRAY{id_flows_model_output}::integer[{len_out_flows}], 
+                    default_params =ARRAY{id_default_params_list}::integer[{len_def_params}],
+                    extra_params =ARRAY{id_extra_params_list}::integer[{len_ext_params}], 
+                     expressions =ARRAY{id_calcs_list}::integer[{len_calcs}]
+                    where id = {id_model};"""
+            with self.connection.cursor() as cursor:
+                cursor.execute(qry)
             return id_model
         else:
-            raise ParametrNotFoundException('Environments not found!')
+            return -1
+            raise ModelProblems('Не удалось добавить модель!')
+
+    def add_scheme(self, name):
+        scheme_id = func_sql_insert.create_scheme(name, self.connection)
+        return scheme_id
+
+    def create_scheme(self, title, instances, flows):
+
+        id_scheme = func_sql_insert.create_scheme(title, self.connection)
+
+        for i in instances:
+            ins = instances[i]
+            model_id = ins["ModelId"]
+            x = ins["x"]
+            y = ins["y"]
+            place_id = self.create_topography(x, y)
+            instance_id = self.create_instance(model_id, id_scheme, place_id)
+            ins["InstanceId"] = instance_id
+
+        for f in flows:
+            num = str(f["FromInstance"])
+            cur_inst = instances[num]
+            f["FromInstance"] = cur_inst["InstanceId"]
+            # Перезаписали айди которое пришло с интерфейса на то которое создали
+            num = str(f["ToInstance"])
+            cur_inst = instances[num]
+            f["ToInstance"] = cur_inst["InstanceId"]
+            scheme_flows_id = self.insert_scheme_flow(f["FromInstance"], f["ToInstance"], id_scheme,
+                                                      f["FromFlow"], f["ToFlow"])
+        return id_scheme
+
+    def create_topography(self, x, y):
+        topog_id = func_sql_insert.create_topography(x, y, self.connection)
+        return topog_id
+
+    def create_instance(self, model, scheme, topography):
+        instance_id = func_sql_insert.create_instance(model, scheme, topography, self.connection)
+        return instance_id
+
+    def insert_param_of_instnc(self, instance, pom, param_name):
+        poi_id = func_sql_insert.insert_param_of_instnc(instance, pom, param_name, self.connection)
+        return poi_id
+
+    def insert_scheme_flow(self, from_instance, to_instance, scheme, from_flow, to_flow):
+        poi_id = func_sql_insert.insert_scheme_flow(from_instance, to_instance, scheme, from_flow, to_flow, self.connection)
+        return poi_id
 
 
 if __name__ == '__main__':
-    db = DbInteraction(
-        host='localhost',
-        port=5432,
-        user="postgres",
-        password="root",
-        db_name="PNI3_v7"
-    )
     db2 = DbConnection(
         host='localhost',
         user="postgres",
         password="root",
-        database="PNI3_v7"
+        database="pni_v9"
     )
 
-    print(db2.get_models_info())
-    #print(db2.create_model())
-    # db.create_table_users()
-    # db.add_param_info(2222, 'test', 'test', 'test', 'base')
-    # db.add_user_info('test', 'test', 'base')
-    # db.get_parametr_info(2222)
+    name = input("Введите имя: ")
+    id_scheme = db2.add_scheme(name)
+
+    print(f"схема номер  {id_scheme} добавлена!")
+
+    all_models = db2.get_models_info()[1]
+
+    # print(all_models["Title"])
+    print(f"выберите номер модели для создания ее экземпляра:  ")
+    for mod in all_models:
+        desc = all_models[mod]
+        print(desc["ModelId"], desc["Title"])
+    model_id = int(input("Модель: "))
+    place_id = db2.create_topography(1, 1)
+    instance_id = db2.create_instance(model_id, id_scheme, place_id)
+
+    print(f"выберите номер второй модели для создания ее экземпляра:  ")
+    for mod in all_models:
+        desc = all_models[mod]
+        print(desc["ModelId"], desc["Title"])
+    model_id2 = int(input("Модель 2: "))
+    place_id2 = db2.create_topography(1, 1)
+    instance_id2 = db2.create_instance(model_id2, id_scheme, place_id2)
+
+    print(f"выберите номер потока, который выходит из первого экземпляра:  ")
+    desc1 = all_models[model_id]
+    for flow in desc1["InputFlows"]:
+        print(flow["FlowId"])
+    from_flow = input("Выходящий поток: ")
+
+    print(f"выберите номер потока, который входит во второй экземпляр:  ")
+    desc2 = all_models[model_id2]
+    for flow in desc2["OutputFlows"]:
+        print(flow["FlowId"])
+    to_flow = input("Входящий поток: ")
+
+    scheme_flows_id = db2.insert_scheme_flow(instance_id, instance_id2, id_scheme, from_flow, to_flow)
+
+    # all_calcs = db2.get_info_instance(model_id)
+    #
+    # for calc in all_calcs:
+    #     neededvars = calc["NeededVariables"]
+    #     for var in neededvars:
+    #         pom = var['pom_id']
+    #         param_name = var['name']
+    #         poi = db2.insert_param_of_instnc(instance_id, pom, param_name)
