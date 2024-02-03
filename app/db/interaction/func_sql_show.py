@@ -116,7 +116,7 @@ def show_expressions(model_id, expressions, con):
             return -1
 
         dict = {'ExpressionId': id_calc, "ExpressionType": type_calc, 'Order': order, 'Expression': exp_text,
-                'NeededVariables': [], 'DefinedVariable': [def_var_id]}
+                'NeededVariables': [], 'DefinedVariable': def_var_id}
 
         qry_required_vars = ["select c_id, array_agg(id), array_agg(param_name) "
                              "from show_calc_required where c_id=%s group by c_id;", [id_calc]]
@@ -127,7 +127,7 @@ def show_expressions(model_id, expressions, con):
             req_var_id_list = result_required_vars[0][1]
             req_var_name_list = result_required_vars[0][2]
             dict = {'ExpressionId': id_calc, "ExpressionType": type_calc, 'Order': order, 'Expression': exp_text,
-                    'NeededVariables': req_var_id_list, 'DefinedVariable': [def_var_id]}
+                    'NeededVariables': req_var_id_list, 'DefinedVariable': def_var_id}
         except Exception:
             print(f"""В %s модели отсутствуют необходимые переменные для выражения %s""" % (model_id, id_calc))
 

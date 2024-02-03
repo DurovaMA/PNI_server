@@ -5,12 +5,13 @@ import random
 
 
 class DbConnection:
-    def __init__(self, host, user, password, database):
+    def __init__(self, db_host, user, password, database, db_port):
         self.connection = psycopg2.connect(
-            host=host,
+            host=db_host,
             user=user,
             password=password,
-            database=database
+            database=database,
+            port=db_port
         )
         self.connection.autocommit = True
 
@@ -435,31 +436,98 @@ class DbConnection:
         scheme_id = func_sql_insert.create_scheme(name, self.connection)
         return scheme_id
 
-    def create_scheme(self, title, instances, flows):
+    def create_scheme(self, title, instances, interconnections):
 
         id_scheme = func_sql_insert.create_scheme(title, self.connection)
 
-        for i in instances:
-            ins = instances[i]
-            model_id = ins["ModelId"]
-            x = ins["x"]
-            y = ins["y"]
-            place_id = self.create_topography(x, y)
+        instances_dict = {}
+        for ins in instances:
+            #ins = instances[i]
+            client_instance_id = ins["BlockInstanceId"]
+            model_id = ins["BlockModel"]["ModelId"]
+            top = ins["OffsetTop"]
+            left = ins["OffsetLeft"]
+            place_id = self.create_topography(top, left)
             instance_id = self.create_instance(model_id, id_scheme, place_id)
-            ins["InstanceId"] = instance_id
+            instances_dict[client_instance_id] = instance_id
+            for def_v in ins["DefaultVariables"]:
+                pom_id = def_v["VariableId"]
+                param_name = def_v["VariableName"]
+                value = def_v["Value"]
+                poi_id = self.insert_param_of_instnc(instance_id, pom_id, param_name, value)
 
-        for f in flows:
-            num = str(f["FromInstance"])
-            cur_inst = instances[num]
-            f["FromInstance"] = cur_inst["InstanceId"]
-            # Перезаписали айди которое пришло с интерфейса на то которое создали
-            num = str(f["ToInstance"])
-            cur_inst = instances[num]
-            f["ToInstance"] = cur_inst["InstanceId"]
-            scheme_flows_id = self.insert_scheme_flow(f["FromInstance"], f["ToInstance"], id_scheme,
-                                                      f["FromFlow"], f["ToFlow"])
+        for intercon in interconnections:
+            client_block_output_id = intercon["OutputFlowConnector"]["BlockInstanceID"]
+            block_output_id = instances_dict[client_block_output_id]
+            flow_output_id = intercon["OutputFlowConnector"]["FlowID"]
+            client_block_input_id = intercon["InputFlowConnector"]["BlockInstanceID"]
+            block_input_id = instances_dict[client_block_input_id]
+            flow_input_id = intercon["InputFlowConnector"]["FlowID"]
+            scheme_flows_id = self.insert_scheme_flow(block_output_id, block_input_id, id_scheme,
+                                                      flow_output_id, flow_input_id)
+
         return id_scheme
+    def show_all_schemes(self):
+        qry_all_schemes = f"""select id, scheme_name from scheme;"""
+        with self.connection.cursor() as cursor:
+            cursor.execute(qry_all_schemes)
+            all_schemes = cursor.fetchall()
+        schemes_list = []
+        for sch in all_schemes:
+            schemes_dict = {}
+            schemes_dict["SchemeId"] = sch[0]
+            schemes_dict["SchemeName"] = sch[1]
+            schemes_list.append(schemes_dict)
+        return schemes_list
 
+    def show_scheme(self, scheme_id):
+        qry_scheme = f"""select * from scheme where id = {scheme_id};"""
+        with self.connection.cursor() as cursor:
+            cursor.execute(qry_scheme)
+            scheme_name = cursor.fetchall()[0][1]
+
+        qry_instances = f"""select * from instnc where scheme_fk = {scheme_id};"""
+        with self.connection.cursor() as cursor:
+            cursor.execute(qry_instances)
+            all_instances = cursor.fetchall()
+
+        instances_list = []
+        for ins in all_instances:
+            instance_id = ins[0]
+            model_id = ins[1]
+            position_id = ins[2]
+            qry_position = f"""select * from topography where id = {position_id};"""
+            with self.connection.cursor() as cursor:
+                cursor.execute(qry_position)
+                position = cursor.fetchall()[0]
+            position_top = position[1]
+            position_left = position[2]
+            qry_def_vars = f"""select * from param_of_instnc where instance_fk = {instance_id};"""
+            with self.connection.cursor() as cursor:
+                cursor.execute(qry_def_vars)
+                def_vars = cursor.fetchall()
+            vars_list = []
+            for var in def_vars:
+                var_dict = {"VariableId": var[2], "Value": var[4]}
+                vars_list.append(var_dict)
+            instance_dict = {"OffsetLeft": position_left, "OffsetTop": position_top, "BlockModel": {"ModelId": model_id},
+                             "BlockInstanceId": instance_id, "DefaultVariables": vars_list}
+            instances_list.append(instance_dict)
+
+
+        qry_interconnections = f"""select * from scheme_flows where scheme_fk = {scheme_id};"""
+        with self.connection.cursor() as cursor:
+            cursor.execute(qry_interconnections)
+            all_interconnections = cursor.fetchall()
+
+        interconnections_list = []
+        for intercon in all_interconnections:
+            block_output_id, block_input_id, flow_output_id, flow_input_id = intercon[1], intercon[2], intercon[4], intercon[5]
+            interconnections_dict = {"InputFlowConnector": {"BlockInstanceID": block_output_id, "FlowID": flow_output_id },
+                                     "OutputFlowConnector": {"BlockInstanceID": block_input_id, "FlowID": flow_input_id}}
+            interconnections_list.append(interconnections_dict)
+        scheme_dict = {"SchemeId": scheme_id, "SchemeName": scheme_name, "BlockInstanсes": instances_list, "BlockInterconnections": interconnections_list}
+        return scheme_dict
     def create_topography(self, x, y):
         topog_id = func_sql_insert.create_topography(x, y, self.connection)
         return topog_id
@@ -468,8 +536,8 @@ class DbConnection:
         instance_id = func_sql_insert.create_instance(model, scheme, topography, self.connection)
         return instance_id
 
-    def insert_param_of_instnc(self, instance, pom, param_name):
-        poi_id = func_sql_insert.insert_param_of_instnc(instance, pom, param_name, self.connection)
+    def insert_param_of_instnc(self, instance, pom, param_name, value):
+        poi_id = func_sql_insert.insert_param_of_instnc(instance, pom, param_name, value, self.connection)
         return poi_id
 
     def insert_scheme_flow(self, from_instance, to_instance, scheme, from_flow, to_flow):

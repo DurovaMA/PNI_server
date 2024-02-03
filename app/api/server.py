@@ -14,20 +14,30 @@ class Server:
         self.host = host
         self.port = port
 
+        # self.db_connect = DbConnection(
+        #     db_host=db_host,
+        #     user=user,
+        #     password=password,
+        #     database=db_name
+        # )
         self.db_connect = DbConnection(
-            host=db_host,
+            db_host=db_host,
             user=user,
             password=password,
-            database=db_name
+            database=db_name,
+            db_port=db_port
         )
 
         self.app = Flask(__name__)
         self.app.add_url_rule('/', view_func=self.get_home)
         self.app.add_url_rule('/get_models', view_func=self.get_models_info)
         self.app.add_url_rule('/get_model_catalog', view_func=self.get_model_catalog_info)
+        self.app.add_url_rule('/get_catalog', view_func=self.get_catalog_info)
         self.app.add_url_rule('/get_info_model/<string:name_model>', view_func=self.get_info_model)
         self.app.add_url_rule('/create_model', view_func=self.add_model_info, methods=['POST'])
         self.app.add_url_rule('/create_scheme', view_func=self.add_scheme_info, methods=['POST'])
+        self.app.add_url_rule('/show_all_schemes', view_func=self.show_all_schemes_info)
+        self.app.add_url_rule('/show_scheme/<int:id_scheme>', view_func=self.show_scheme_info)
         self.app.add_url_rule('/get_instance', view_func=self.get_instance_info, methods=['POST'])
         self.app.add_url_rule('/get_envs', view_func=self.get_envs_info)
 
@@ -71,6 +81,7 @@ class Server:
     def get_models_info(self):
         '''Возвращает json со всеми моделями'''
         try:
+
             models_info = self.db_connect.get_models_info()[0]
             return models_info, 200
         except ModelProblems as m_problem:
@@ -78,11 +89,19 @@ class Server:
     def get_model_catalog_info(self):
         '''Возвращает json со всеми моделями плюс каталогами'''
         try:
+            models_info = open(f'C:/GitHub/PNI_server/app/db/scripts/catalogs.json', 'r', encoding="utf-8")
+            res = models_info.read()
+            return res, 200
+        except ModelProblems as m_problem:
+            abort(404, description=m_problem)
+
+    def get_catalog_info(self):
+        '''Возвращает json со всеми моделями плюс каталогами'''
+        try:
             models_info = self.db_connect.get_model_catalog_info()[0]
             return models_info, 200
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
-
     def get_info_model(self, name_model):
         '''Функция для создания аналога в графовой БД. Возвращает инфо об одной модели'''
         try:
@@ -128,13 +147,30 @@ class Server:
         scheme_info = dict(request.json)
         scheme_id = self.db_connect.create_scheme(
             title=scheme_info['Title'],
-            instances=scheme_info['Instances'],
-            flows=scheme_info['Flows']
+            instances=scheme_info['BlockInstanсes'],
+            interconnections=scheme_info['BlockInterconnections']
         )
         if scheme_id == -1:
             return f'Схема не может быть добавлена', 400
         else:
             return f'Success added {scheme_id}', 201
+    def show_all_schemes_info(self):
+        try:
+            all_schemes = self.db_connect.show_all_schemes( )
+            return all_schemes, 200
+        except ModelProblems as m_problem:
+            abort(404, description=m_problem)
+
+    def show_scheme_info(self, id_scheme):
+        try:
+            scheme = self.db_connect.show_scheme(
+                scheme_id=id_scheme
+            )
+            return scheme, 200
+        except ModelProblems as m_problem:
+            abort(404, description=m_problem)
+
+
 
 
 if __name__ == '__main__':

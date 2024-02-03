@@ -283,9 +283,9 @@ def create_instance(model, scheme, topography, con):
     return instance_id
 
 
-def insert_param_of_instnc(instance, pom, param_name, con):
-    qry = f"""insert into param_of_instnc (instance_fk, pom_fk, param_name) 
-        values ({instance}, {pom}, '{param_name}') returning id;"""
+def insert_param_of_instnc(instance, pom, param_name, value, con):
+    qry = f"""insert into param_of_instnc (instance_fk, pom_fk, param_name, value) 
+        values ({instance}, {pom}, '{param_name}', {value}) returning id;"""
     with con.cursor() as cursor:
         cursor.execute(qry)
         result_sql = cursor.fetchall()
