@@ -1,4 +1,5 @@
 def config_parser(config_path):
+    print(config_path)
     with open(config_path, 'r') as config_file:
         config = dict()
         lines = config_file.readlines()
