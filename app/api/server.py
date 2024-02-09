@@ -1,6 +1,7 @@
 import threading
 # import requests
 import argparse
+import os
 
 from flask import Flask, request, jsonify, abort
 from app.api.utils import config_parser
@@ -89,7 +90,10 @@ class Server:
     def get_model_catalog_info(self):
         '''Возвращает json со всеми моделями плюс каталогами'''
         try:
-            models_info = open(f'C:/GitHub/PNI_server/app/db/scripts/catalogs.json', 'r', encoding="utf-8")
+            path = os.path.join(os.getcwd(),f'/app/db/scripts/catalogs.json');
+            print("Путь до каталогов", path)
+            #models_info = open(f'C:/GitHub/PNI_server/app/db/scripts/catalogs.json', 'r', encoding="utf-8")
+            models_info = open(path, 'r', encoding="utf-8")
             res = models_info.read()
             return res, 200
         except ModelProblems as m_problem:
@@ -105,7 +109,10 @@ class Server:
     def get_info_model(self, name_model):
         '''Функция для создания аналога в графовой БД. Возвращает инфо об одной модели'''
         try:
-            models_info = open(f'C:/GitHub/PNI_server/app/db/scripts/{name_model}.json', 'r', encoding="utf-8")
+            path = os.path.join(os.getcwd(), f'/app/db/scripts/{name_model}.json');
+            print("Путь до каталогов", path)
+            #models_info = open(f'C:/GitHub/PNI_server/app/db/scripts/{name_model}.json', 'r', encoding="utf-8")
+            models_info = open(f'path', 'r', encoding="utf-8")
             res = models_info.read()
             return res, 200
         except ModelProblems as m_problem:
