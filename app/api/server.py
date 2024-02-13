@@ -191,8 +191,10 @@ if __name__ == '__main__':
     server_host = config['SERVER_HOST']
     server_port = config['SERVER_PORT']
 
-    db_host = config['DB_HOST']
-    db_port = config['DB_PORT']
+    db_host = os.environ.get('DB_HOST',config['DB_HOST'])
+    print("DB_host",db_host)
+    db_port = os.environ.get('DB_PORT',config['DB_PORT'])
+    print("DB_port",db_port)
     db_user = config['DB_USER']
     db_password = config['DB_PASSWORD']
     db_name = config['DB_NAME']
