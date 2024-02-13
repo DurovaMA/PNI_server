@@ -36,9 +36,9 @@ class Server:
         self.app.add_url_rule('/get_catalog', view_func=self.get_catalog_info)
         self.app.add_url_rule('/get_info_model/<string:name_model>', view_func=self.get_info_model)
         self.app.add_url_rule('/create_model', view_func=self.add_model_info, methods=['POST'])
-        self.app.add_url_rule('/create_scheme', view_func=self.add_scheme_info, methods=['POST'])
-        self.app.add_url_rule('/show_all_schemes', view_func=self.show_all_schemes_info)
-        self.app.add_url_rule('/show_scheme/<int:id_scheme>', view_func=self.show_scheme_info)
+        self.app.add_url_rule('/create_schema', view_func=self.add_schema_info, methods=['POST'])
+        self.app.add_url_rule('/show_all_schemas', view_func=self.show_all_schemas_info)
+        self.app.add_url_rule('/show_schema/<int:id_schema>', view_func=self.show_schema_info)
         self.app.add_url_rule('/get_instance', view_func=self.get_instance_info, methods=['POST'])
         self.app.add_url_rule('/get_envs', view_func=self.get_envs_info)
 
@@ -150,30 +150,30 @@ class Server:
         else:
             return f'Success added {model_id}', 201
 
-    def add_scheme_info(self):
-        scheme_info = dict(request.json)
-        scheme_id = self.db_connect.create_scheme(
-            title=scheme_info['Title'],
-            instances=scheme_info['BlockInstances'],
-            interconnections=scheme_info['BlockInterconnections']
+    def add_schema_info(self):
+        schema_info = dict(request.json)
+        schema_id = self.db_connect.create_schema(
+            title=schema_info['Title'],
+            instances=schema_info['BlockInstances'],
+            interconnections=schema_info['BlockInterconnections']
         )
-        if scheme_id == -1:
+        if schema_id == -1:
             return f'Схема не может быть добавлена', 400
         else:
-            return f'Success added {scheme_id}', 201
-    def show_all_schemes_info(self):
+            return f'Success added {schema_id}', 201
+    def show_all_schemas_info(self):
         try:
-            all_schemes = self.db_connect.show_all_schemes( )
-            return all_schemes, 200
+            all_schemas = self.db_connect.show_all_schemas( )
+            return all_schemas, 200
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
 
-    def show_scheme_info(self, id_scheme):
+    def show_schema_info(self, id_schema):
         try:
-            scheme = self.db_connect.show_scheme(
-                scheme_id=id_scheme
+            schema = self.db_connect.show_schema(
+                schema_id=id_schema
             )
-            return scheme, 200
+            return schema, 200
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
 

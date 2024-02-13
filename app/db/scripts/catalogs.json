@@ -4,11 +4,11 @@
     "CatalogName": "Сквозные однопоточные элементы",
     "Models": [
       {
-        "ModelId": 5,
+        "ModelId": 1,
         "Title": "Насос V2"
       },
       {
-        "ModelId": 3,
+        "ModelId": 2,
         "Title": "Турбина V2"
       }
     ],
@@ -18,11 +18,11 @@
         "CatalogName": "Конденсаторы и котлы",
         "Models": [
           {
-            "ModelId": 7,
+            "ModelId": 4,
             "Title": "Конденсатор"
           },
           {
-            "ModelId": 6,
+            "ModelId": 3,
             "Title": "Котёл (V2)"
           }
         ],
@@ -35,7 +35,7 @@
     "CatalogName": "Генераторы потоков",
     "Models": [
       {
-        "ModelId": 4,
+        "ModelId": 5,
         "Title": "Генератор потока"
       }
     ],

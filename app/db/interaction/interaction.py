@@ -432,13 +432,13 @@ class DbConnection:
             return -1
             raise ModelProblems('Не удалось добавить модель!')
 
-    def add_scheme(self, name):
-        scheme_id = func_sql_insert.create_scheme(name, self.connection)
-        return scheme_id
+    def add_schema(self, name):
+        schema_id = func_sql_insert.create_schema(name, self.connection)
+        return schema_id
 
-    def create_scheme(self, title, instances, interconnections):
+    def create_schema(self, title, instances, interconnections):
 
-        id_scheme = func_sql_insert.create_scheme(title, self.connection)
+        id_schema = func_sql_insert.create_schema(title, self.connection)
 
         instances_dict = {}
         for ins in instances:
@@ -448,7 +448,7 @@ class DbConnection:
             top = ins["OffsetTop"]
             left = ins["OffsetLeft"]
             place_id = self.create_topography(top, left)
-            instance_id = self.create_instance(model_id, id_scheme, place_id)
+            instance_id = self.create_instance(model_id, id_schema, place_id)
             instances_dict[client_instance_id] = instance_id
             for def_v in ins["DefaultVariables"]:
                 pom_id = def_v["VariableId"]
@@ -463,30 +463,30 @@ class DbConnection:
             client_block_input_id = intercon["InputFlowConnector"]["BlockInstanceID"]
             block_input_id = instances_dict[client_block_input_id]
             flow_input_id = intercon["InputFlowConnector"]["FlowID"]
-            scheme_flows_id = self.insert_scheme_flow(block_output_id, block_input_id, id_scheme,
+            schema_flows_id = self.insert_schema_flow(block_output_id, block_input_id, id_schema,
                                                       flow_output_id, flow_input_id)
 
-        return id_scheme
-    def show_all_schemes(self):
-        qry_all_schemes = f"""select id, scheme_name from scheme;"""
+        return id_schema
+    def show_all_schemas(self):
+        qry_all_schemas = f"""select id, schema_name from schema;"""
         with self.connection.cursor() as cursor:
-            cursor.execute(qry_all_schemes)
-            all_schemes = cursor.fetchall()
-        schemes_list = []
-        for sch in all_schemes:
-            schemes_dict = {}
-            schemes_dict["SchemeId"] = sch[0]
-            schemes_dict["SchemeName"] = sch[1]
-            schemes_list.append(schemes_dict)
-        return schemes_list
+            cursor.execute(qry_all_schemas)
+            all_schemas = cursor.fetchall()
+        schemas_list = []
+        for sch in all_schemas:
+            schemas_dict = {}
+            schemas_dict["SchemaId"] = sch[0]
+            schemas_dict["SchemaName"] = sch[1]
+            schemas_list.append(schemas_dict)
+        return schemas_list
 
-    def show_scheme(self, scheme_id):
-        qry_scheme = f"""select * from scheme where id = {scheme_id};"""
+    def show_schema(self, schema_id):
+        qry_schema = f"""select * from schema where id = {schema_id};"""
         with self.connection.cursor() as cursor:
-            cursor.execute(qry_scheme)
-            scheme_name = cursor.fetchall()[0][1]
+            cursor.execute(qry_schema)
+            schema_name = cursor.fetchall()[0][1]
 
-        qry_instances = f"""select * from instnc where scheme_fk = {scheme_id};"""
+        qry_instances = f"""select * from instnc where schema_fk = {schema_id};"""
         with self.connection.cursor() as cursor:
             cursor.execute(qry_instances)
             all_instances = cursor.fetchall()
@@ -515,7 +515,7 @@ class DbConnection:
             instances_list.append(instance_dict)
 
 
-        qry_interconnections = f"""select * from scheme_flows where scheme_fk = {scheme_id};"""
+        qry_interconnections = f"""select * from schema_flows where schema_fk = {schema_id};"""
         with self.connection.cursor() as cursor:
             cursor.execute(qry_interconnections)
             all_interconnections = cursor.fetchall()
@@ -526,22 +526,22 @@ class DbConnection:
             interconnections_dict = {"InputFlowConnector": {"BlockInstanceID": block_output_id, "FlowID": flow_output_id },
                                      "OutputFlowConnector": {"BlockInstanceID": block_input_id, "FlowID": flow_input_id}}
             interconnections_list.append(interconnections_dict)
-        scheme_dict = {"SchemeId": scheme_id, "SchemeName": scheme_name, "BlockInstanсes": instances_list, "BlockInterconnections": interconnections_list}
-        return scheme_dict
+        schema_dict = {"SchemaId": schema_id, "SchemaName": schema_name, "BlockInstanсes": instances_list, "BlockInterconnections": interconnections_list}
+        return schema_dict
     def create_topography(self, x, y):
         topog_id = func_sql_insert.create_topography(x, y, self.connection)
         return topog_id
 
-    def create_instance(self, model, scheme, topography):
-        instance_id = func_sql_insert.create_instance(model, scheme, topography, self.connection)
+    def create_instance(self, model, schema, topography):
+        instance_id = func_sql_insert.create_instance(model, schema, topography, self.connection)
         return instance_id
 
     def insert_param_of_instnc(self, instance, pom, param_name, value):
         poi_id = func_sql_insert.insert_param_of_instnc(instance, pom, param_name, value, self.connection)
         return poi_id
 
-    def insert_scheme_flow(self, from_instance, to_instance, scheme, from_flow, to_flow):
-        poi_id = func_sql_insert.insert_scheme_flow(from_instance, to_instance, scheme, from_flow, to_flow, self.connection)
+    def insert_schema_flow(self, from_instance, to_instance, schema, from_flow, to_flow):
+        poi_id = func_sql_insert.insert_schema_flow(from_instance, to_instance, schema, from_flow, to_flow, self.connection)
         return poi_id
 
 
@@ -554,9 +554,9 @@ if __name__ == '__main__':
     )
 
     name = input("Введите имя: ")
-    id_scheme = db2.add_scheme(name)
+    id_schema = db2.add_schema(name)
 
-    print(f"схема номер  {id_scheme} добавлена!")
+    print(f"схема номер  {id_schema} добавлена!")
 
     all_models = db2.get_models_info()[1]
 
@@ -567,7 +567,7 @@ if __name__ == '__main__':
         print(desc["ModelId"], desc["Title"])
     model_id = int(input("Модель: "))
     place_id = db2.create_topography(1, 1)
-    instance_id = db2.create_instance(model_id, id_scheme, place_id)
+    instance_id = db2.create_instance(model_id, id_schema, place_id)
 
     print(f"выберите номер второй модели для создания ее экземпляра:  ")
     for mod in all_models:
@@ -575,7 +575,7 @@ if __name__ == '__main__':
         print(desc["ModelId"], desc["Title"])
     model_id2 = int(input("Модель 2: "))
     place_id2 = db2.create_topography(1, 1)
-    instance_id2 = db2.create_instance(model_id2, id_scheme, place_id2)
+    instance_id2 = db2.create_instance(model_id2, id_schema, place_id2)
 
     print(f"выберите номер потока, который выходит из первого экземпляра:  ")
     desc1 = all_models[model_id]
@@ -589,7 +589,7 @@ if __name__ == '__main__':
         print(flow["FlowId"])
     to_flow = input("Входящий поток: ")
 
-    scheme_flows_id = db2.insert_scheme_flow(instance_id, instance_id2, id_scheme, from_flow, to_flow)
+    schema_flows_id = db2.insert_schema_flow(instance_id, instance_id2, id_schema, from_flow, to_flow)
 
     # all_calcs = db2.get_info_instance(model_id)
     #

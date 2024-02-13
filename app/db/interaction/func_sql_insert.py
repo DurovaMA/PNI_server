@@ -255,13 +255,13 @@ def add_calc(mod_id, calc_list, con):
 
 
 
-def create_scheme(name, con):
-    qry = f"""insert into scheme (scheme_name) values ('{name}') returning id;"""
+def create_schema(name, con):
+    qry = f"""insert into schema (schema_name) values ('{name}') returning id;"""
     with con.cursor() as cursor:
         cursor.execute(qry)
         result_sql = cursor.fetchall()
-    scheme_id = result_sql[0][0]
-    return scheme_id
+    schema_id = result_sql[0][0]
+    return schema_id
 
 
 def create_topography(x, y, con):
@@ -273,9 +273,9 @@ def create_topography(x, y, con):
     return topog_id
 
 
-def create_instance(model, scheme, topography, con):
-    qry = f"""insert into instnc (model_fk, position_fk, scheme_fk, instance_type) 
-        values ({model}, {topography}, {scheme}, 'block') returning id;"""
+def create_instance(model, schema, topography, con):
+    qry = f"""insert into instnc (model_fk, position_fk, schema_fk, instance_type) 
+        values ({model}, {topography}, {schema}, 'block') returning id;"""
     with con.cursor() as cursor:
         cursor.execute(qry)
         result_sql = cursor.fetchall()
@@ -293,9 +293,9 @@ def insert_param_of_instnc(instance, pom, param_name, value, con):
     return poi_id
 
 
-def insert_scheme_flow(from_instance, to_instance, scheme, from_flow, to_flow, con):
-    qry = f"""insert into scheme_flows (from_instance_fk, to_instance_fk, scheme_fk, from_flow_fk, to_flow_fk) 
-        values ({from_instance}, {to_instance}, {scheme}, {from_flow}, {to_flow}) returning id;"""
+def insert_schema_flow(from_instance, to_instance, schema, from_flow, to_flow, con):
+    qry = f"""insert into schema_flows (from_instance_fk, to_instance_fk, schema_fk, from_flow_fk, to_flow_fk) 
+        values ({from_instance}, {to_instance}, {schema}, {from_flow}, {to_flow}) returning id;"""
     with con.cursor() as cursor:
         cursor.execute(qry)
         result_sql = cursor.fetchall()

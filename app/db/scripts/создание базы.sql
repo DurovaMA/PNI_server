@@ -9,11 +9,12 @@ DROP TABLE public.param_of_model CASCADE;
 DROP TABLE public.calculation CASCADE;
 DROP TABLE public.all_inclusions  CASCADE;
 DROP TABLE public.instnc  CASCADE;
-DROP TABLE public.scheme  CASCADE;
-DROP TABLE public.scheme_flows  CASCADE;
-DROP TABLE public.topography  CASCADE;
+DROP TABLE public.schema  CASCADE;
+DROP TABLE public.schema_flows  CASCADE;
+DROP TABLE public.position  CASCADE;
 DROP TABLE public.directory  CASCADE;
 DROP TABLE public.directory_model  CASCADE;
+DROP TABLE public.param_of_instnc;
 
 DROP TYPE public."types_group";
 DROP TYPE public."types_flow";
@@ -179,38 +180,38 @@ CREATE TABLE public.calculation (
 );
 COMMENT ON TABLE public.calculation IS 'Расчетное выражение';
 
--- DROP TABLE public.topography;
-CREATE TABLE public.topography (
+-- DROP TABLE public.position;
+CREATE TABLE public.position (
     id serial NOT NULL,
     x real null,
     y real null,
     color real null,
-    CONSTRAINT topography_pk PRIMARY KEY (id)
+    CONSTRAINT position_pk PRIMARY KEY (id)
     );
-COMMENT ON TABLE public.topography IS 'Топография экземпляра';
+COMMENT ON TABLE public.position IS 'Топография экземпляра';
 
--- DROP TABLE public.scheme;
-CREATE TABLE public.scheme (
+-- DROP TABLE public.schema;
+CREATE TABLE public.schema (
     id serial NOT NULL,
-    scheme_name varchar null,
-    CONSTRAINT scheme_pk PRIMARY KEY (id)
+    schema_name varchar null,
+    CONSTRAINT schema_pk PRIMARY KEY (id)
     );
-COMMENT ON TABLE public.scheme IS 'Схема с экземплярами блоков и связями';
+COMMENT ON TABLE public.schema IS 'Схема с экземплярами блоков и связями';
 
 -- DROP TABLE public.instnc;
 CREATE TABLE public.instnc (
     id serial NOT NULL,
     model_fk int4 NOT NULL,
-    topography_fk int4 NOT NULL,
-    scheme_fk int4 NOT NULL,
+    position_fk int4 NOT NULL,
+    schema_fk int4 NOT NULL,
     instance_type public.types_instance NOT null default 'block',
     CONSTRAINT instnc_pk PRIMARY KEY (id),
     CONSTRAINT instnc_fk FOREIGN KEY (model_fk)
     	REFERENCES public.model_of_block(id) ON DELETE CASCADE ON UPDATE cascade,
-    CONSTRAINT instnc_fk_1 FOREIGN KEY (topography_fk)
-    	REFERENCES public.topography(id) ON DELETE CASCADE ON UPDATE cascade,
-    CONSTRAINT instnc_fk_2 FOREIGN KEY (scheme_fk)
-    	REFERENCES public.scheme(id) ON DELETE CASCADE ON UPDATE cascade
+    CONSTRAINT instnc_fk_1 FOREIGN KEY (position_fk)
+    	REFERENCES public.position(id) ON DELETE CASCADE ON UPDATE cascade,
+    CONSTRAINT instnc_fk_2 FOREIGN KEY (schema_fk)
+    	REFERENCES public.schema(id) ON DELETE CASCADE ON UPDATE cascade
     );
 COMMENT ON TABLE public.instnc IS 'Экземпляр блока';
 
@@ -228,27 +229,27 @@ CREATE TABLE public.param_of_instnc (
 COMMENT ON TABLE public.param_of_instnc IS 'Значения параметров блока или потока';
 
 
--- DROP TABLE public.scheme_flows;
-CREATE TABLE public.scheme_flows (
+-- DROP TABLE public.schema_flows;
+CREATE TABLE public.schema_flows (
     id serial NOT NULL,
     from_instance_fk int4 NOT NULL,
     to_instance_fk int4 NOT NULL,
-    scheme_fk int4 NOT NULL,
+    schema_fk int4 NOT NULL,
     from_flow_fk int4 NOT NULL,
     to_flow_fk int4 NOT NULL,
-    CONSTRAINT scheme_flows_pk PRIMARY KEY (id),
-    CONSTRAINT scheme_flows_fk FOREIGN KEY (from_instance_fk)
+    CONSTRAINT schema_flows_pk PRIMARY KEY (id),
+    CONSTRAINT schema_flows_fk FOREIGN KEY (from_instance_fk)
     	REFERENCES public.instnc(id) ON DELETE CASCADE ON UPDATE cascade,
-    CONSTRAINT scheme_flows_fk_1 FOREIGN KEY (to_instance_fk)
+    CONSTRAINT schema_flows_fk_1 FOREIGN KEY (to_instance_fk)
     	REFERENCES public.instnc(id) ON DELETE CASCADE ON UPDATE cascade,
-    CONSTRAINT scheme_flows_fk_2 FOREIGN KEY (scheme_fk)
-    	REFERENCES public.scheme(id) ON DELETE CASCADE ON UPDATE cascade,
-    CONSTRAINT scheme_flows_fk_3 FOREIGN KEY (from_flow_fk)
+    CONSTRAINT schema_flows_fk_2 FOREIGN KEY (schema_fk)
+    	REFERENCES public.schema(id) ON DELETE CASCADE ON UPDATE cascade,
+    CONSTRAINT schema_flows_fk_3 FOREIGN KEY (from_flow_fk)
     	REFERENCES public.flow(id) ON DELETE CASCADE ON UPDATE cascade,
-    CONSTRAINT scheme_flows_fk_4 FOREIGN KEY (to_flow_fk)
+    CONSTRAINT schema_flows_fk_4 FOREIGN KEY (to_flow_fk)
     	REFERENCES public.flow(id) ON DELETE CASCADE ON UPDATE cascade
     );
-COMMENT ON TABLE public.scheme_flows IS 'Поток в схеме. Соединяет два экземпляра блока. Для первого указывается один из его выходных потоков, для второго - входной';
+COMMENT ON TABLE public.schema_flows IS 'Поток в схеме. Соединяет два экземпляра блока. Для первого указывается один из его выходных потоков, для второго - входной';
 
 
 -- DROP TABLE public.directory;

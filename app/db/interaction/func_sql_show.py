@@ -501,6 +501,32 @@ class DbConnection:
                 return catalog
         return list1
 
+    def show_catalog(self, catalog):
+        base_models = {
+            "ModelId": 0,
+            "Title": ""
+        }
+        base_catalog = {
+            "CatalogId": 0,
+            "CatalogName": "",
+            "Models": [],
+            "Children": []
+        }
+
+        flag = True
+        list1 = []
+        while flag:
+            if (type(catalog) == list) and (catalog != []):
+                catalog = catalog[0]
+                for c in catalog.keys():
+                    m = self.show_models_in_catalog(catalog[c])
+                    # print(m)
+                    list1.append(m)
+            else:
+                flag = False
+                return catalog
+        return list1
+
     def create_graph(self):
         qry_max_level = f"""select max(level) from view_catalog;"""
         with self.connection.cursor() as cursor:
@@ -653,7 +679,7 @@ def deep_keys(obj, arr=None, branch=None):
         arr = []  # Список создается один раз, при первом вызове.
     if not branch:
         branch = {}
-    #dict = obj[0]
+    # dict = obj[0]
     i = 0
     for key, val in obj.items():
         i = i + 1
