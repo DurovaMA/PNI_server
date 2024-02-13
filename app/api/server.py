@@ -154,7 +154,7 @@ class Server:
         scheme_info = dict(request.json)
         scheme_id = self.db_connect.create_scheme(
             title=scheme_info['Title'],
-            instances=scheme_info['BlockInstanсes'],
+            instances=scheme_info['BlockInstances'],
             interconnections=scheme_info['BlockInterconnections']
         )
         if scheme_id == -1:

@@ -265,7 +265,7 @@ def create_scheme(name, con):
 
 
 def create_topography(x, y, con):
-    qry = f"""insert into topography (x, y) values ({x}, {y}) returning id;"""
+    qry = f"""insert into position (x, y) values ({x}, {y}) returning id;"""
     with con.cursor() as cursor:
         cursor.execute(qry)
         result_sql = cursor.fetchall()
@@ -274,7 +274,7 @@ def create_topography(x, y, con):
 
 
 def create_instance(model, scheme, topography, con):
-    qry = f"""insert into instnc (model_fk, topography_fk, scheme_fk, instance_type) 
+    qry = f"""insert into instnc (model_fk, position_fk, scheme_fk, instance_type) 
         values ({model}, {topography}, {scheme}, 'block') returning id;"""
     with con.cursor() as cursor:
         cursor.execute(qry)

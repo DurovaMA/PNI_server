@@ -496,7 +496,7 @@ class DbConnection:
             instance_id = ins[0]
             model_id = ins[1]
             position_id = ins[2]
-            qry_position = f"""select * from topography where id = {position_id};"""
+            qry_position = f"""select * from position where id = {position_id};"""
             with self.connection.cursor() as cursor:
                 cursor.execute(qry_position)
                 position = cursor.fetchall()[0]
