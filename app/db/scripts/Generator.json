@@ -1,0 +1,83 @@
+{
+    "Title": "Генератор потока",
+    "Description": "Задаёт начальные значения потока",
+    "InputFlows": [],
+    "OutputFlows": [
+        {
+            "FlowVariableIndex": 1,
+            "FlowEnvironment": "вода"
+        }
+    ],
+    "DefaultParameters": [
+        {
+            "Symbol": "G",
+            "Units": "Вт",
+            "Title": "Значение G"
+        },
+        {
+            "Symbol": "P",
+            "Units": "Па",
+            "Title": "Давление в потоке"
+        },
+        {
+            "Symbol": "T",
+            "Units": "Deg C",
+            "Title": "Температура потока"
+        }
+    ],
+    "ExtraParameters": [],
+    "Expressions": [
+        {
+            "Expression": "P",
+            "DefinedVariable": "p1",
+            "Order": 1,
+            "NeededVariables": [
+                "P"
+            ],
+            "ExpressionTypeName": "Expression",
+            "ExpressionType": 0
+        },
+        {
+            "Expression": "T + 273.15",
+            "DefinedVariable": "T1",
+            "Order": 2,
+            "NeededVariables": [
+                "T"
+            ],
+            "ExpressionTypeName": "Expression",
+            "ExpressionType": 0
+        },
+        {
+            "Expression": "PropSI(H ; P; P; T; T1; Water)",
+            "DefinedVariable": "h1",
+            "Order": 3,
+            "NeededVariables": [
+                "P",
+                "T1"
+            ],
+            "ExpressionTypeName": "PropSI",
+            "ExpressionType": 1
+        },
+        {
+            "Expression": "PropSI(S ; P; P; T; T1; Water)",
+            "DefinedVariable": "s1",
+            "Order": 4,
+            "NeededVariables": [
+                "P",
+                "T1"
+            ],
+            "ExpressionTypeName": "PropSI",
+            "ExpressionType": 1
+        },
+        {
+            "Expression": "G",
+            "DefinedVariable": "G1",
+            "Order": 5,
+            "NeededVariables": [
+                "G"
+            ],
+            "ExpressionTypeName": "Expression",
+            "ExpressionType": 0
+        }
+    ]
+}
