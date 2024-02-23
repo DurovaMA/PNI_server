@@ -14,13 +14,6 @@ class Server:
     def __init__(self, host, port, db_host, db_port, user, password, db_name):
         self.host = host
         self.port = port
-
-        # self.db_connect = DbConnection(
-        #     db_host=db_host,
-        #     user=user,
-        #     password=password,
-        #     database=db_name
-        # )
         self.db_connect = DbConnection(
             db_host=db_host,
             user=user,

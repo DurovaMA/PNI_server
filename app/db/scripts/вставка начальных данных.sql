@@ -32,3 +32,20 @@ INSERT INTO public.param_of_group (param_fk,group_fk) VALUES
 	 (1,2), --Давление, avail_for_env 2
 	 (3,2), --Энтальпия, avail_for_env 2
 	 (4,2); --Тепловая мощность, avail_for_env 2
+
+
+INSERT INTO public.directory
+(id, dir_name, parent_level_fk)
+values
+(1,	'Сквозные однопоточные элементы', null),
+(2,'Конденсаторы и котлы', 1),
+(3,	'Генераторы потоков', null);
+
+INSERT INTO public.directory_model
+(id, model_fk, directory_fk)
+values
+(1, 1, 1),
+(2, 2, 1),
+(3, 4, 2),
+(4, 3, 2),
+(5, 5, 3);

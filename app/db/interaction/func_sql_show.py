@@ -207,6 +207,18 @@ class DbConnection:
         )
         self.connection.autocommit = True
 
+    class Directory(dict):
+        def __init__(self):
+            self.dict = {
+                "CatalogId": 0,
+                "CatalogName": "",
+                "Models": [],
+                "Children": []
+            }
+
+        def __str__(self):
+            return self.dict
+
     def model_info(self, model_id):
         qry = f"""select * from model_of_block where id={model_id};"""
         with self.connection.cursor() as cursor:
@@ -501,32 +513,6 @@ class DbConnection:
                 return catalog
         return list1
 
-    def show_catalog(self, catalog):
-        base_models = {
-            "ModelId": 0,
-            "Title": ""
-        }
-        base_catalog = {
-            "CatalogId": 0,
-            "CatalogName": "",
-            "Models": [],
-            "Children": []
-        }
-
-        flag = True
-        list1 = []
-        while flag:
-            if (type(catalog) == list) and (catalog != []):
-                catalog = catalog[0]
-                for c in catalog.keys():
-                    m = self.show_models_in_catalog(catalog[c])
-                    # print(m)
-                    list1.append(m)
-            else:
-                flag = False
-                return catalog
-        return list1
-
     def create_graph(self):
         qry_max_level = f"""select max(level) from view_catalog;"""
         with self.connection.cursor() as cursor:
@@ -660,38 +646,244 @@ class DbConnection:
                 cur_catalog_list.append(cur_model_desc)
         return catalog_list
 
+    def show_f_catalog(self):
+        base_models = {
+            "ModelId": 0,
+            "Title": ""
+        }
+        base_catalog = {
+            "CatalogId": 0,
+            "CatalogName": "",
+            "Models": [],
+            "Children": []
+        }
+        # qry_oldest = f"""select * from directory d where d.parent_level_fk is null;"""
+        # with self.connection.cursor() as cursor:
+        #     cursor.execute(qry_oldest)
+        #     oldest_levels = cursor.fetchall()
+        #
+        # all_dirs = []
+        # for d in oldest_levels:
+        #     cur_dir = base_catalog.copy()
+        #     cur_dir["CatalogId"] = d[0]
+        #     cur_dir["CatalogName"] = d[1]
+        #     all_dirs.append(cur_dir)
 
-class Directory:
-    def __init__(self, data):
-        self.id = data  # Назначаем дату
-        self.parent = None  # Инициализируем следующий узел как «null»
-        self.childs = []
+        qry_all = f"""select parent.id id_current, parent.dir_name current_name,  child.dir_name child_name, child.id id_child 
+	from directory parent
+	full join directory child on parent.id =child.parent_level_fk order by id_child desc;"""
+        with self.connection.cursor() as cursor:
+            cursor.execute(qry_all)
+            all_levels = cursor.fetchall()
 
-    def append_child(self, val):
-        end = Directory(val)
-        n = self
-        n.childs.append(end)
-        end.parent = n
+        all_dirs = []
+        for d in all_levels:
+            if d[0] is None:
+                cur_dir = base_catalog.copy()
+                cur_dir["CatalogId"] = d[3]
+                cur_dir["CatalogName"] = d[2]
+                all_dirs.append(cur_dir)
+            else:
+                pass
+
+        return all_dirs
+
+    def show_f_catalog2(self):
+        base_models = {
+            "ModelId": 0,
+            "Title": ""
+        }
+
+        base_catalog = {
+            "CatalogId": 0,
+            "CatalogName": "",
+            "Models": [],
+            "Children": []
+        }
+
+        qry_all = f"""select parent.id id_current, parent.dir_name current_name,  child.dir_name child_name, child.id id_child 
+	from directory parent
+	full join directory child on parent.id =child.parent_level_fk order by id_child desc;"""
+        with self.connection.cursor() as cursor:
+            cursor.execute(qry_all)
+            all_levels = cursor.fetchall()
+
+        all_dirs = []
+        buf_children = {}
+        buf_parents = {}
+        buf_all = []
+        flag = True
+        while flag:
+            flag = False
+            for d in all_levels:
+                id_cur = d[0]
+                id_child = d[3]
+                if id_cur is None:
+                    cur_dir = self.Directory().dict
+                    cur_dir["CatalogId"] = d[0]
+                    cur_dir["CatalogName"] = d[1]
+                    cur_dir["Children"].append(buf_children.pop(id_child))
+                    buf_all.append(cur_dir)
+                if id_child is None:  # если нет детей у каталога
+                    cur_dir = self.Directory().dict
+                    cur_dir["CatalogId"] = d[0]
+                    cur_dir["CatalogName"] = d[1]
+                    buf_children[d[0]] = cur_dir.copy()
+                    parent_keys = buf_parents.keys()
+                    if id_child in parent_keys:
+                        cur_dir["Children"].append(buf_parents.pop(id_child))
+                else:
+                    cur_dir2 = self.Directory().dict
+                    cur_dir2["CatalogId"] = d[0]
+                    cur_dir2["CatalogName"] = d[1]
+                    child_keys = buf_children.keys()
+                    if id_child in child_keys:
+                        child = buf_children.pop(id_child)
+                        cur_dir2["Children"].append(child)
+                    else:
+                        ch = self.Directory().dict
+                        ch["CatalogId"] = d[3]
+                        ch["CatalogName"] = d[2]
+                        buf_children[d[3]] = ch.copy()
+                        # buf_parents[d[0]] = cur_dir2.copy()  # родитель, которому не нашлось пока дочернего
+                    buf_children[d[0]] = cur_dir2.copy()
+                    parent_keys = buf_parents.keys()
+                    if id_child in parent_keys:
+                        cur_dir["Children"].append(buf_parents.pop(id_child))
+                    # третий каталог куда-то теряется, потому что у него есть дочерний каталог
+            if buf_parents != {}:
+                flag = True
+            # if None in buf_children.keys():
+            #     flag = True
+        return buf_children, buf_parents, buf_all
+
+    def deep_keys(self,  buf=None, res=None, res_dict=None):
+        if not buf:
+            buf = {}
+        if not res:
+            res = []
+        if not res_dict:
+            res_dict = {}
+
+        for key1, value1 in buf.items():
+            cur_lev = self.Directory().dict
+            cur_lev["CatalogId"] = key1
+            cur_lev["Children"].append(value1)
+            res.append(cur_lev)
+            if type(value1) == dict:
+                self.deep_keys(value1, res)
+
+        return res
+
+    def deep_keys2(self, list,  buf=None, res=None):
+        if not buf:
+            buf = {}
+        if not res:
+            res = []
+        for l in list:
+            id = l['CatalogId']
+            for key1, value1 in buf.items():
+                if key1 == id:
+                    self.deep_keys2(list, l['CatalogId'])
+                elif type(value1) == dict:
+                    self.deep_keys2(list=list, buf=value1)
+
+        return res
+
+    def deep_keys3(self,  buf=None, res=None, res_dict=None, i=None):
+        if not buf:
+            buf = {}
+        if not res:
+            res = []
+        if not res_dict:
+            res_dict = []
+        if not i:
+            i = 0
+
+        for key1, value1 in buf.items():
+            cur_lev = self.Directory().dict
+            cur_lev["i"] = i
+            cur_lev["CatalogId"] = key1
+            childs = value1
+            #cur_lev["Children"].append(childs)
+            res = cur_lev
+            if type(childs) == dict:
+                i = i + 1
+                cur_lev["Children"] = []
+                res2 = self.deep_keys3(buf=childs, res_dict=res_dict, res=res, i=i)
+                cur_lev["Children"].append(res2)
+                i = i-1
+            else:
+                cur_lev["Children"] = []
+            res_dict.append(cur_lev)
+        return res_dict
+    def show_f_catalog3(self):
+
+        qry_all = f"""select parent.id id_current, parent.dir_name current_name,  child.dir_name child_name, child.id id_child 
+	from directory parent
+	full join directory child on parent.id =child.parent_level_fk order by id_child desc;"""
+        with self.connection.cursor() as cursor:
+            cursor.execute(qry_all)
+            all_levels = cursor.fetchall()
+
+        all_dirs = []
+        buf_children = {}
+        ParentChild = {}
+        buf_all = []
+
+        for d in all_levels:
+            id_cur = d[0]
+            id_child = d[3]
+            if id_child is not None:
+                parent_keys = ParentChild.keys()
+                if id_cur not in parent_keys:
+                    ParentChild[id_cur] = {id_child: []}
+                else:
+                    ParentChild[id_cur][id_child] = []
+
+        flag = True
+        buf = ParentChild.copy()
+        while flag:
+            parent_keys = ParentChild.keys()
+            p = ParentChild.items()
+
+            for key, value in buf.items():
+                for v in value:
+                    if v in parent_keys:
+                        ParentChild[key][v] = ParentChild.pop(v)
+
+            parent_keys_len = len(ParentChild.keys())
+            if parent_keys_len == 1:
+                flag = False
+
+        buf = ParentChild.copy()
+        # for key1, value1 in buf.items():
+        #     cur_lev = self.Directory().dict
+        #     cur_lev["CatalogId"] = key1
+        #     #if type(value1) == dict:
+        #     cur_lev["Children"].append(value1)
+        #     for v1 in value1:
+        #         child_lev = self.Directory().dict
+        #         child_lev["CatalogId"] = v1
+        #         child_lev["Children"].append(value1[v1])
+        res = self.deep_keys(buf)
+        return res, buf
 
 
-def deep_keys(obj, arr=None, branch=None):
-    if not arr:
-        arr = []  # Список создается один раз, при первом вызове.
-    if not branch:
-        branch = {}
-    # dict = obj[0]
-    i = 0
-    for key, val in obj.items():
-        i = i + 1
-        arr.append(key)
-        branch['dir_id'] = val
+# class Directory:
+#     def __init__(self, data):
+#         self.id = data  # Назначаем дату
+#         self.parent = None  # Инициализируем следующий узел как «null»
+#         self.childs = []
+#
+#     def append_child(self, val):
+#         end = Directory(val)
+#         n = self
+#         n.childs.append(end)
+#         end.parent = n
 
-        if type(val) == dict:
-            deep_keys(val, arr, branch)  # Передается на заполнение в дальнейшие вызовы...
-    if i == 0:
-        print('branch end')
-        branch = None
-    return arr
+
+
 
 
 if __name__ == '__main__':
@@ -699,12 +891,30 @@ if __name__ == '__main__':
         host='localhost',
         user="postgres",
         password="root",
-        database="pni_v11"
+        database="pni_v12"
     )
 
-    v = []
-    v.append(db2.show_catalog2())
-    print(v[0])
-    tree = {'a': {'b': {'c': {}, 'd': {}}, 'e': {}, 'f': {}, 'g': {}}}
-    print(deep_keys(v[0]))
-    db2.show_models_in_catalog(v)
+    # c, p, a = db2.show_f_catalog2()
+    # print(c)
+    # print(p)
+    # print(a)
+    list, buf = db2.show_f_catalog3()
+    print(buf)
+    #for b in list:
+        #print(b)
+    res2 = db2.deep_keys3(buf=buf)
+    print(res2)
+
+    # for key1, value1 in buf.items():
+    #     cur_lev = db2.Directory().dict
+    #     cur_lev["CatalogId"] = key1
+    #     cur_lev["Children"].append(value1)
+    #     res.append(cur_lev)
+    #     if type(value1) == dict:
+    #         db2.deep_keys(list=res, buf=value1,  res=res)
+    # v = []
+    # v.append(db2.show_catalog2())
+    # print(v[0])
+    # tree = {'a': {'b': {'c': {}, 'd': {}}, 'e': {}, 'f': {}, 'g': {}}}
+    # print(deep_keys(v[0]))
+    # db2.show_models_in_catalog(v)
