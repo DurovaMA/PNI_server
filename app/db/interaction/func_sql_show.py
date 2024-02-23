@@ -198,12 +198,13 @@ def info_instance(mod_id, con):
 
 
 class DbConnection:
-    def __init__(self, host, user, password, database):
+    def __init__(self, host, user, password, database, port=5432):
         self.connection = psycopg2.connect(
             host=host,
             user=user,
             password=password,
-            database=database
+            database=database,
+            port=port,
         )
         self.connection.autocommit = True
 
@@ -216,8 +217,15 @@ class DbConnection:
                 "Children": []
             }
 
+        def set_id_and_name(self, cat_id, name):
+            self.dict["CatalogId"] = cat_id
+            self.dict["CatalogName"] = name
+
         def __str__(self):
-            return self.dict
+            return str(self.dict)
+
+        def __repr__(self):
+            return str(self.dict)
 
     def model_info(self, model_id):
         qry = f"""select * from model_of_block where id={model_id};"""
@@ -757,7 +765,7 @@ class DbConnection:
             #     flag = True
         return buf_children, buf_parents, buf_all
 
-    def deep_keys(self,  buf=None, res=None, res_dict=None):
+    def deep_keys(self, buf=None, res=None, res_dict=None):
         if not buf:
             buf = {}
         if not res:
@@ -775,7 +783,7 @@ class DbConnection:
 
         return res
 
-    def deep_keys2(self, list,  buf=None, res=None):
+    def deep_keys2(self, list, buf=None, res=None):
         if not buf:
             buf = {}
         if not res:
@@ -790,7 +798,39 @@ class DbConnection:
 
         return res
 
-    def deep_keys3(self,  buf=None, res=None, res_dict=None, i=None):
+    def get_catalogs(self):
+        qry_all = f"""select * from directory order by id desc;"""
+        with self.connection.cursor() as cursor:
+            cursor.execute(qry_all)
+            dirs = cursor.fetchall()
+        print(dirs)
+
+        dirs_tree_root = self.Directory()
+        dirs_tree_root.set_id_and_name(0, "__root__")
+        level_stack = [dirs_tree_root]
+        print(dirs_tree_root)
+        print(level_stack)
+
+        while len(level_stack) > 0:
+            current_catalog_id = (level_stack[len(level_stack) - 1]).dict["CatalogId"]
+            current_catalog_id = None if current_catalog_id == 0 else current_catalog_id
+            print(current_catalog_id)
+            founded_children = [x for x in dirs if x[2] == current_catalog_id]
+            print(founded_children)
+            if len(founded_children) == 0:
+                print("levelUp")
+                dirs = [x for x in dirs if x[0] != current_catalog_id]
+                level_stack.pop()
+            else:
+                print("Processed ", founded_children[0][0])
+                new_children = self.Directory()
+                new_children.set_id_and_name(founded_children[0][0], founded_children[0][1])
+                level_stack[len(level_stack) - 1].dict["Children"].append(new_children)
+                level_stack.append(new_children)
+
+        return dirs_tree_root
+
+    def deep_keys3(self, buf=None, res=None, res_dict=None, i=None):
         if not buf:
             buf = {}
         if not res:
@@ -805,18 +845,19 @@ class DbConnection:
             cur_lev["i"] = i
             cur_lev["CatalogId"] = key1
             childs = value1
-            #cur_lev["Children"].append(childs)
+            # cur_lev["Children"].append(childs)
             res = cur_lev
             if type(childs) == dict:
                 i = i + 1
                 cur_lev["Children"] = []
                 res2 = self.deep_keys3(buf=childs, res_dict=res_dict, res=res, i=i)
                 cur_lev["Children"].append(res2)
-                i = i-1
+                i = i - 1
             else:
                 cur_lev["Children"] = []
             res_dict.append(cur_lev)
         return res_dict
+
     def show_f_catalog3(self):
 
         qry_all = f"""select parent.id id_current, parent.dir_name current_name,  child.dir_name child_name, child.id id_child 
@@ -883,27 +924,34 @@ class DbConnection:
 #         end.parent = n
 
 
-
-
-
 if __name__ == '__main__':
+    # db2 = DbConnection(
+    #     host='localhost',
+    #     user="postgres",
+    #     password="root",
+    #     database="pni_v12"
+    # )
+
     db2 = DbConnection(
-        host='localhost',
+        host='91.103.252.95',
         user="postgres",
-        password="root",
-        database="pni_v12"
+        password="ThermalUpPGPass",
+        database="postgres",
+        port=3100
     )
 
     # c, p, a = db2.show_f_catalog2()
     # print(c)
     # print(p)
     # print(a)
-    list, buf = db2.show_f_catalog3()
-    print(buf)
-    #for b in list:
-        #print(b)
-    res2 = db2.deep_keys3(buf=buf)
-    print(res2)
+    #list, buf = db2.show_f_catalog3()
+    #print(buf)
+    # for b in list:
+    # print(b)
+    #res2 = db2.deep_keys3(buf=buf)
+    #print(res2)
+
+    print(db2.get_catalogs())
 
     # for key1, value1 in buf.items():
     #     cur_lev = db2.Directory().dict
