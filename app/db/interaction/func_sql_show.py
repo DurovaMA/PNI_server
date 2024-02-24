@@ -227,6 +227,19 @@ class DbConnection:
         def __repr__(self):
             return str(self.dict)
 
+    class CatalogModel(dict):
+        def __init__(self, model_id, model_name):
+            self.dict = {
+                "ModelId": model_id,
+                "Title": model_name
+            }
+
+        def __str__(self):
+            return str(self.dict)
+
+        def __repr__(self):
+            return str(self.dict)
+
     def model_info(self, model_id):
         qry = f"""select * from model_of_block where id={model_id};"""
         with self.connection.cursor() as cursor:
@@ -800,27 +813,36 @@ class DbConnection:
 
     def get_catalogs(self):
         qry_all = f"""select * from directory order by id desc;"""
+        qry_models = f"""select directory_fk, model_fk, title  from directory_model inner join model_of_block on directory_model.model_fk = model_of_block.id;"""
         with self.connection.cursor() as cursor:
             cursor.execute(qry_all)
             dirs = cursor.fetchall()
-        print(dirs)
+            cursor.execute(qry_models)
+            all_models = cursor.fetchall()
+        # print(dirs)
+        print(all_models)
 
         dirs_tree_root = self.Directory()
         dirs_tree_root.set_id_and_name(0, "__root__")
         level_stack = [dirs_tree_root]
-        print(dirs_tree_root)
-        print(level_stack)
+        # print(dirs_tree_root)
+        # print(level_stack)
 
         while len(level_stack) > 0:
             current_catalog_id = (level_stack[len(level_stack) - 1]).dict["CatalogId"]
             current_catalog_id = None if current_catalog_id == 0 else current_catalog_id
-            print(current_catalog_id)
+            # print(current_catalog_id)
             founded_children = [x for x in dirs if x[2] == current_catalog_id]
-            print(founded_children)
+            # print(founded_children)
             if len(founded_children) == 0:
                 print("levelUp")
                 dirs = [x for x in dirs if x[0] != current_catalog_id]
-                level_stack.pop()
+                # Вот тут надо написать код по напихиванию в Models моделей
+                founded_models = [model for model in all_models if model[0] == current_catalog_id]
+                models = list(map(lambda x: self.CatalogModel(x[1], x[2]), founded_models))
+                print(models)
+                removed = level_stack.pop()
+                removed.dict["Models"].extend(models)
             else:
                 print("Processed ", founded_children[0][0])
                 new_children = self.Directory()
@@ -944,12 +966,12 @@ if __name__ == '__main__':
     # print(c)
     # print(p)
     # print(a)
-    #list, buf = db2.show_f_catalog3()
-    #print(buf)
+    # list, buf = db2.show_f_catalog3()
+    # print(buf)
     # for b in list:
     # print(b)
-    #res2 = db2.deep_keys3(buf=buf)
-    #print(res2)
+    # res2 = db2.deep_keys3(buf=buf)
+    # print(res2)
 
     print(db2.get_catalogs())
 
