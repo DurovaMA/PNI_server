@@ -1,3 +1,5 @@
+import json
+
 from app.db.interaction import func_sql
 from app.db.exceptions import ModelProblems
 import psycopg2
@@ -210,35 +212,17 @@ class DbConnection:
 
     class Directory(dict):
         def __init__(self):
-            self.dict = {
-                "CatalogId": 0,
-                "CatalogName": "",
-                "Models": [],
-                "Children": []
-            }
+            dict.__init__(self, CatalogId=0, CatalogName="", Models=[], Children=[])
+            self.dict = {}
 
         def set_id_and_name(self, cat_id, name):
-            self.dict["CatalogId"] = cat_id
-            self.dict["CatalogName"] = name
-
-        def __str__(self):
-            return str(self.dict)
-
-        def __repr__(self):
-            return str(self.dict)
+            self["CatalogId"] = cat_id
+            self["CatalogName"] = name
 
     class CatalogModel(dict):
         def __init__(self, model_id, model_name):
-            self.dict = {
-                "ModelId": model_id,
-                "Title": model_name
-            }
+            dict.__init__(self, ModelId=model_id, Title=model_name)
 
-        def __str__(self):
-            return str(self.dict)
-
-        def __repr__(self):
-            return str(self.dict)
 
     def model_info(self, model_id):
         qry = f"""select * from model_of_block where id={model_id};"""
@@ -829,7 +813,7 @@ class DbConnection:
         # print(level_stack)
 
         while len(level_stack) > 0:
-            current_catalog_id = (level_stack[len(level_stack) - 1]).dict["CatalogId"]
+            current_catalog_id = (level_stack[len(level_stack) - 1])["CatalogId"]
             current_catalog_id = None if current_catalog_id == 0 else current_catalog_id
             # print(current_catalog_id)
             founded_children = [x for x in dirs if x[2] == current_catalog_id]
@@ -842,12 +826,12 @@ class DbConnection:
                 models = list(map(lambda x: self.CatalogModel(x[1], x[2]), founded_models))
                 print(models)
                 removed = level_stack.pop()
-                removed.dict["Models"].extend(models)
+                removed["Models"].extend(models)
             else:
                 print("Processed ", founded_children[0][0])
                 new_children = self.Directory()
                 new_children.set_id_and_name(founded_children[0][0], founded_children[0][1])
-                level_stack[len(level_stack) - 1].dict["Children"].append(new_children)
+                level_stack[len(level_stack) - 1]["Children"].append(new_children)
                 level_stack.append(new_children)
 
         return dirs_tree_root
@@ -973,7 +957,7 @@ if __name__ == '__main__':
     # res2 = db2.deep_keys3(buf=buf)
     # print(res2)
 
-    print(db2.get_catalogs())
+    print(json.dumps(db2.get_catalogs()))
 
     # for key1, value1 in buf.items():
     #     cur_lev = db2.Directory().dict
