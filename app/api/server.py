@@ -26,7 +26,7 @@ class Server:
         self.app.add_url_rule('/', view_func=self.get_home)
         self.app.add_url_rule('/get_models', view_func=self.get_models_info)
         self.app.add_url_rule('/get_model_catalog', view_func=self.get_model_catalog_info)
-        self.app.add_url_rule('/get_catalog', view_func=self.get_catalog_info)
+        #self.app.add_url_rule('/get_catalog', view_func=self.get_catalog_info)
         self.app.add_url_rule('/get_info_model/<string:name_model>', view_func=self.get_info_model)
         self.app.add_url_rule('/create_model', view_func=self.add_model_info, methods=['POST'])
         self.app.add_url_rule('/create_schema', view_func=self.add_schema_info, methods=['POST'])
@@ -80,22 +80,23 @@ class Server:
             return models_info, 200
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
+
+    # def get_model_catalog_info(self):
+    #     '''Возвращает json со всеми моделями плюс каталогами'''
+    #     try:
+    #         path = os.path.join(os.getcwd(),f'/app/db/scripts/catalogs.json');
+    #         print("Путь до каталогов", path)
+    #         #models_info = open(f'C:/GitHub/PNI_server/app/db/scripts/catalogs.json', 'r', encoding="utf-8")
+    #         models_info = open(path, 'r', encoding="utf-8")
+    #         res = models_info.read()
+    #         return res, 200
+    #     except ModelProblems as m_problem:
+    #         abort(404, description=m_problem)
+
     def get_model_catalog_info(self):
         '''Возвращает json со всеми моделями плюс каталогами'''
         try:
-            path = os.path.join(os.getcwd(),f'/app/db/scripts/catalogs.json');
-            print("Путь до каталогов", path)
-            #models_info = open(f'C:/GitHub/PNI_server/app/db/scripts/catalogs.json', 'r', encoding="utf-8")
-            models_info = open(path, 'r', encoding="utf-8")
-            res = models_info.read()
-            return res, 200
-        except ModelProblems as m_problem:
-            abort(404, description=m_problem)
-
-    def get_catalog_info(self):
-        '''Возвращает json со всеми моделями плюс каталогами'''
-        try:
-            models_info = self.db_connect.get_model_catalog_info()[0]
+            models_info = self.db_connect.get_model_catalog_info()
             return models_info, 200
         except ModelProblems as m_problem:
             abort(404, description=m_problem)

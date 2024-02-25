@@ -15,6 +15,18 @@ class DbConnection:
         )
         self.connection.autocommit = True
 
+    class Directory(dict):
+        def __init__(self):
+            dict.__init__(self, CatalogId=0, CatalogName="", Models=[], Children=[])
+            self.dict = {}
+
+        def set_id_and_name(self, cat_id, name):
+            self["CatalogId"] = cat_id
+            self["CatalogName"] = name
+
+    class CatalogModel(dict):
+        def __init__(self, model_id, model_name):
+            dict.__init__(self, ModelId=model_id, Title=model_name)
 
     def insert_users(self):
 
@@ -123,80 +135,44 @@ class DbConnection:
 
 
     def get_model_catalog_info(self):
-        qry_all_directories = f"""select * from directory d ;"""
+        qry_all = f"""select * from directory order by id desc;"""
+        qry_models = f"""select directory_fk, model_fk, title  from directory_model inner join model_of_block on directory_model.model_fk = model_of_block.id;"""
         with self.connection.cursor() as cursor:
-            cursor.execute(qry_all_directories)
-            all_directories = cursor.fetchall()
+            cursor.execute(qry_all)
+            dirs = cursor.fetchall()
+            cursor.execute(qry_models)
+            all_models = cursor.fetchall()
+        # print(dirs)
+        print(all_models)
 
-        description_list = []
-        description_dict = {}
-        problem_list = []
+        dirs_tree_root = self.Directory()
+        dirs_tree_root.set_id_and_name(0, "__root__")
+        level_stack = [dirs_tree_root]
+        # print(dirs_tree_root)
+        # print(level_stack)
 
-        if len(all_directories) == 0:
-            problem_list.append("Каталогов в базе нет")
-        for m in all_directories:
-            problem_text = ""
-            print(m)
-            model_id = m[0]
-            title = m[1]
-            description = m[2]
-            input_flows = m[4]
-            output_flows = m[5]
-            default_params = m[6]
-            extra_params = m[7]
-            expressions = m[8]
-
-            critical_flag = False
-
-            input_flows_list, problem_flow, flag_flow = func_sql_show.show_flows \
-                (model_id, "input", input_flows, self.connection)
-            problem_text += problem_flow
-            critical_flag += flag_flow
-            output_flows_list, problem_flow, flag_flow = func_sql_show.show_flows \
-                (model_id, "output", output_flows, self.connection)
-            problem_text += problem_flow
-            critical_flag += flag_flow
-
-            if extra_params != []:
-                extra_params_list, problem_params, flag_params = func_sql_show.show_extra_default_params \
-                    (model_id, "extra", extra_params, self.connection)
+        while len(level_stack) > 0:
+            current_catalog_id = (level_stack[len(level_stack) - 1])["CatalogId"]
+            current_catalog_id = None if current_catalog_id == 0 else current_catalog_id
+            # print(current_catalog_id)
+            founded_children = [x for x in dirs if x[2] == current_catalog_id]
+            # print(founded_children)
+            if len(founded_children) == 0:
+                print("levelUp")
+                dirs = [x for x in dirs if x[0] != current_catalog_id]
+                # Вот тут надо написать код по напихиванию в Models моделей
+                founded_models = [model for model in all_models if model[0] == current_catalog_id]
+                models = list(map(lambda x: self.CatalogModel(x[1], x[2]), founded_models))
+                print(models)
+                removed = level_stack.pop()
+                removed["Models"].extend(models)
             else:
-                extra_params_list = []
-                problem_params = ("в модели %s нет дополнительных параметров" % (model_id))
-                flag_params = 0
-            problem_text += problem_params
-            critical_flag += flag_params
-
-            if default_params != []:
-                default_params_list, problem_params, flag_params = func_sql_show.show_extra_default_params \
-                    (model_id, "default", default_params, self.connection)
-            else:
-                default_params_list = []
-                problem_params = ("в модели %s нет параметров по умолчанию" % (model_id))
-                flag_params = 0
-
-            problem_text += problem_params
-            critical_flag += flag_params
-
-
-            expressions_list = func_sql_show.show_expressions \
-                (model_id, expressions, self.connection)
-            #problem_text += problem_expressions
-            # critical_flag += flag_expression
-
-            if (critical_flag > 0) or ((len(input_flows_list) < 1) and (len(output_flows_list) < 1)):
-                problem_text += ("\nМодель номер %d не будет отображена\n" % model_id)
-            else:
-                model_desc = {'ModelId': model_id, 'Title': title, 'Description': description,
-                              'InputFlows': input_flows_list, 'OutputFlows': output_flows_list,
-                              'DefaultParameters': default_params_list, 'CustomParameters': extra_params_list,
-                              'Expressions': expressions_list}
-                description_list.append(model_desc)
-                description_dict[model_id] = model_desc
-            problem_list.append(problem_text)
-
-        print('\n'.join(map(str, problem_list)))
-        return description_list, description_dict
+                print("Processed ", founded_children[0][0])
+                new_children = self.Directory()
+                new_children.set_id_and_name(founded_children[0][0], founded_children[0][1])
+                level_stack[len(level_stack) - 1]["Children"].append(new_children)
+                level_stack.append(new_children)
+        return dirs_tree_root
     def get_models_info(self):
         qry = f"""select * from model_of_block;"""
         with self.connection.cursor() as cursor:
