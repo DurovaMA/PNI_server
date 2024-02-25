@@ -1,3 +1,5 @@
+import json
+
 from app.db.interaction import func_sql
 from app.db.exceptions import ModelProblems
 import psycopg2
@@ -198,14 +200,29 @@ def info_instance(mod_id, con):
 
 
 class DbConnection:
-    def __init__(self, host, user, password, database):
+    def __init__(self, host, user, password, database, port=5432):
         self.connection = psycopg2.connect(
             host=host,
             user=user,
             password=password,
-            database=database
+            database=database,
+            port=port,
         )
         self.connection.autocommit = True
+
+    class Directory(dict):
+        def __init__(self):
+            dict.__init__(self, CatalogId=0, CatalogName="", Models=[], Children=[])
+            self.dict = {}
+
+        def set_id_and_name(self, cat_id, name):
+            self["CatalogId"] = cat_id
+            self["CatalogName"] = name
+
+    class CatalogModel(dict):
+        def __init__(self, model_id, model_name):
+            dict.__init__(self, ModelId=model_id, Title=model_name)
+
 
     def model_info(self, model_id):
         qry = f"""select * from model_of_block where id={model_id};"""
@@ -271,440 +288,65 @@ class DbConnection:
             description_list.append(model_desc)
             return description_list
 
-    # def show_childs_in_catalog(catalog_id, con):
-    #     qry_directories = f"""select d.id, d.dir_name,  d2.dir_name, d2.id  from directory d
-    #     left join directory d2 on d.id =d2.parent_level_fk where d.id = {catalog_id};"""
-    #     with con.cursor() as cursor:
-    #         cursor.execute(qry_directories)
-    #         all_directories = cursor.fetchall()
-    #     catalog_dict = {}
-    #     catalog_list = []
-    #     for dir in all_directories:
-    #         try:
-    #             catalog_id = dir[0]
-    #             dir_name = dir[1]
-    #             child_name = dir[2]
-    #             child_id = dir[3]
-    #         except Exception:
-    #             print("Невозможно прочитать каталоги")
-    #             return -1
-    #         catalog_dict = {'CatalogId': catalog_id}
-    #     return
-    def show_childs_in_catalog(self, catalog_id):
-        qry_directories = f"""select d.id, d.dir_name,  d2.dir_name, d2.id  from directory d 
-        left join directory d2 on d.id =d2.parent_level_fk where d.id = {catalog_id};"""
+
+    def get_catalogs(self):
+        qry_all = f"""select * from directory order by id desc;"""
+        qry_models = f"""select directory_fk, model_fk, title  from directory_model inner join model_of_block on directory_model.model_fk = model_of_block.id;"""
         with self.connection.cursor() as cursor:
-            cursor.execute(qry_directories)
-            all_directories = cursor.fetchall()
-        catalog_dict = {}
-        catalog_list = []
-        for dir in all_directories:
-            try:
-                catalog_id = dir[0]
-                dir_name = dir[1]
-                child_name = dir[2]
-                child_id = dir[3]
-            except Exception:
-                print("Невозможно прочитать каталоги")
-                return -1
-            while child_id is not None:
-                childs = self.show_childs_in_catalog(catalog_id)
-                catalog_dict = {'CatalogId': catalog_id, 'Direct_name': dir_name, 'childs': childs}
-                catalog_list.append(catalog_dict)
-        return catalog_list
+            cursor.execute(qry_all)
+            dirs = cursor.fetchall()
+            cursor.execute(qry_models)
+            all_models = cursor.fetchall()
+        # print(dirs)
+        print(all_models)
 
-    def show_catalog(self):
-        qry_directories = f"""select * from directory d where parent_level_fk is Null  ;"""
-        with self.connection.cursor() as cursor:
-            cursor.execute(qry_directories)
-            all_directories = cursor.fetchall()
-        catalog_dict = {}
-        catalog_list = []
-        # здесь перебираем все каталоги, у которых нет родительского - то есть все корневые
-        for dir in all_directories:
-            try:
-                catalog_id = dir[0]
-                dir_name = dir[1]
-            except Exception:
-                print("Невозможно прочитать каталоги")
-                return -1
-            childs = self.show_childs_in_catalog(catalog_id)
-            catalog_dict = {'CatalogId': catalog_id, 'Direct_name': dir_name, 'childs': childs}
-            catalog_list.append(catalog_dict)
-        return catalog_list
+        dirs_tree_root = self.Directory()
+        dirs_tree_root.set_id_and_name(0, "__root__")
+        level_stack = [dirs_tree_root]
+        # print(dirs_tree_root)
+        # print(level_stack)
 
-    # def show_models_catalog(self):
-    #     qry_directories = f"""select * from models_catalog order by (level, id) desc;"""
-    #     with self.connection.cursor() as cursor:
-    #         cursor.execute(qry_directories)
-    #         models = cursor.fetchall()
-    #     catalog_dict = {}
-    #     catalog_list = []
-    #     lev = 0
-    #     parent_id = 0
-    #     cur_catalog_id = 0
-    #     childs = []
-    #     cur_catalog_list = []
-    #     cur_model_desc = {}
-    #     for m in models:
-    #         try:
-    #             model_id, title, catalog_id, parent_catalog_id, dir_name, level = m[0], m[1], m[2], m[3], m[4], m[5]
-    #         except Exception:
-    #             print("Невозможно прочитать модели в каталогах")
-    #             return -1
-    #         if cur_catalog_id != catalog_id: #если данная модель находится в другом каталоге
-    #             cur_model_desc = {'ModelId': model_id, 'Title': title}
-    #             cur_catalog_list = [cur_model_desc]
-    #             cur_catalog_id = catalog_id
-    #             cur_catalog_dict = {'CatalogId': cur_catalog_id, 'Direct_name': dir_name}
-    #             catalog_list.append(cur_catalog_dict)
-    #             cur_catalog_dict['Models'] = cur_catalog_list
-    #         else:
-    #             cur_model_desc = {'ModelId': model_id, 'Title': title}
-    #             cur_catalog_list.append(cur_model_desc)
-    #     return catalog_list
-
-    def create_catalog(self):
-
-        qry_directories = f"""select * from view_catalog order by level;"""
-        with self.connection.cursor() as cursor:
-            cursor.execute(qry_directories)
-            directories = cursor.fetchall()
-        cur_childs = []
-        cur_parent = 0
-
-        parent_child_dict = {}
-        for dir in directories:
-            try:
-                id_parent, parent_name, child_name, child_id, level = dir[0], dir[1], dir[2], dir[3], dir[4]
-            except Exception:
-                print("Невозможно прочитать каталоги")
-                return -1
-            if id_parent != cur_parent:
-                cur_parent = id_parent
-                cur_childs = [{'child_id': child_id, 'child_name': child_name}]
-                # if parent_child_dict['child_id']
-                parent_child_dict[cur_parent] = cur_childs
+        while len(level_stack) > 0:
+            current_catalog_id = (level_stack[len(level_stack) - 1])["CatalogId"]
+            current_catalog_id = None if current_catalog_id == 0 else current_catalog_id
+            # print(current_catalog_id)
+            founded_children = [x for x in dirs if x[2] == current_catalog_id]
+            # print(founded_children)
+            if len(founded_children) == 0:
+                print("levelUp")
+                dirs = [x for x in dirs if x[0] != current_catalog_id]
+                # Вот тут надо написать код по напихиванию в Models моделей
+                founded_models = [model for model in all_models if model[0] == current_catalog_id]
+                models = list(map(lambda x: self.CatalogModel(x[1], x[2]), founded_models))
+                print(models)
+                removed = level_stack.pop()
+                removed["Models"].extend(models)
             else:
-                parent_child_dict[cur_parent].append({'child_id': child_id, 'child_name': child_name})
+                print("Processed ", founded_children[0][0])
+                new_children = self.Directory()
+                new_children.set_id_and_name(founded_children[0][0], founded_children[0][1])
+                level_stack[len(level_stack) - 1]["Children"].append(new_children)
+                level_stack.append(new_children)
 
-        return parent_child_dict
+        return dirs_tree_root
 
-    def check_childs(self, diction, key):
-        print(diction)
-        print(type(diction))
-        try:
-            dicts = diction.keys()
-            list = []
-            for k in dicts:
-                list.append(self.check_childs(diction[k], k))
-            return list
-        except:
-            return []
-
-    def show_catalog2(self):
-
-        qry_max_level = f"""select max(level) from view_catalog;"""
-        with self.connection.cursor() as cursor:
-            cursor.execute(qry_max_level)
-            max_level = cursor.fetchall()[0][0]
-
-        qry_directories = f"""select  id_parent,parent_name,  child_name, id_child, level from view_catalog order by 
-                            (level, id_parent) desc;"""
-        with self.connection.cursor() as cursor:
-            cursor.execute(qry_directories)
-            directories = cursor.fetchall()
-        cur_childs = []
-        cur_parent = 0
-        parent_child_dict = {}
-        level = 0
-        prev_parent = 0
-        prev_parent_child_dict = {}
-        cur_dict = []
-        prev_childs = {}
-        new_parent_child_dict = {}
-        for dir in directories:
-            try:
-                id_parent, parent_name, child_name, child_id, level = dir[0], dir[1], dir[2], dir[3], dir[4]
-            except Exception:
-                print("Невозможно прочитать каталоги")
-                return -1
-            child_dict = {'id_parent': id_parent, 'parent_name': parent_name, 'child_name': child_name,
-                          'child_id': child_id}
-
-            try:
-                new_parent_child_dict[id_parent][child_id] = {}
-            except:
-                new_parent_child_dict[id_parent] = {child_id: {}}
-        # print(new_parent_child_dict)
-
-        for dict in new_parent_child_dict.keys():
-            for d in new_parent_child_dict[dict]:
-                if d in new_parent_child_dict.keys():
-                    new_parent_child_dict[dict][d] = new_parent_child_dict[d]
-
-        parent_child_dict = new_parent_child_dict[None]
-        next_dict = parent_child_dict
-        list = []
-        level = 1
-
-        list_dicts = []
-        for dir in next_dict.keys():
-            qry_models = f"""select model_id, title from models_catalog where id =  {dir}"""
-            with self.connection.cursor() as cursor:
-                cursor.execute(qry_models)
-                models = cursor.fetchall()
-            new_dict = {}
-            new_dict['CatalogId'] = dir
-            new_dict['Models'] = models
-            new_dict['Childs'] = []
-            try:
-                new_dict['Childs'] = next_dict[dir]
-            except:
-                new_dict['Childs'] = []
-            list_dicts.append(new_dict)
-            # print(list_dicts)
-        flag = True
-
-        return parent_child_dict
-
-    def show_models_in_catalog2(self, catalog):
-        flag = True
-        while flag:
-            flag = False
-            i = 0
-            try:
-                print(catalog.keys())
-                for c in catalog.keys():
-                    self.show_models_in_catalog(catalog[c][0])
-                    try:
-                        catalog = catalog[c][0]
-                    except:
-                        print('end')
-                flag = True
-            except:
-                pass
-
-    def show_models_in_catalog(self, catalog):
-        print(catalog)
-        flag = True
-        list1 = []
-        while flag:
-            if (type(catalog) == list) and (catalog != []):
-                catalog = catalog[0]
-                for c in catalog.keys():
-                    m = self.show_models_in_catalog(catalog[c])
-                    # print(m)
-                    list1.append(m)
-            else:
-                flag = False
-                return catalog
-        return list1
-
-    def show_catalog(self, catalog):
-        base_models = {
-            "ModelId": 0,
-            "Title": ""
-        }
-        base_catalog = {
-            "CatalogId": 0,
-            "CatalogName": "",
-            "Models": [],
-            "Children": []
-        }
-
-        flag = True
-        list1 = []
-        while flag:
-            if (type(catalog) == list) and (catalog != []):
-                catalog = catalog[0]
-                for c in catalog.keys():
-                    m = self.show_models_in_catalog(catalog[c])
-                    # print(m)
-                    list1.append(m)
-            else:
-                flag = False
-                return catalog
-        return list1
-
-    def create_graph(self):
-        qry_max_level = f"""select max(level) from view_catalog;"""
-        with self.connection.cursor() as cursor:
-            cursor.execute(qry_max_level)
-            max_level = cursor.fetchall()[0][0]
-
-        qry_directories = f"""select  id_parent,parent_name,  child_name, id_child, level from view_catalog
-                            order by (level, id_parent) desc;"""
-        with self.connection.cursor() as cursor:
-            cursor.execute(qry_directories)
-            directories = cursor.fetchall()
-        dict_level = {}
-        graph = {}
-        for dir in directories:
-            id_parent, parent_name, child_name, child_id, cur_level = dir[0], dir[1], dir[2], dir[3], dir[4]
-            try:
-                dict_level[cur_level].append(
-                    {'id_parent': id_parent, 'parent_name': parent_name, 'child_name': child_name,
-                     'child_id': child_id})
-            except:
-                dict_level[cur_level] = [{'id_parent': id_parent, 'parent_name': parent_name, 'child_name': child_name,
-                                          'child_id': child_id}]
-        root_nodes = []
-        for dict in dict_level[1]:
-            node = Directory(dict['child_id'])
-            root_nodes.append(node)
-        prev_nodes = root_nodes
-        for l in range(2, max_level + 1):
-            cur_nodes = []
-            for dict in dict_level[l]:
-
-                node = Directory(dict['child_id'])
-                cur_nodes.append(node)
-                for par_node in prev_nodes:
-                    if dict['id_parent'] == par_node.id:
-                        par_node.append_child(dict['child_id'])
-            prev_nodes = cur_nodes
-
-        c = root_nodes[0]
-        while c.childs:
-            print(c.id)
-            c = root_nodes
-            # node.parent =
-            # dir_list.append(root.append_child(7).append_child(4))
-            # dir_list.append(root.append_child(13))
-            #
-            # for c in root.childs:
-            #     while root.childs:
-            #         print(c.id)
-
-            # lev = dict_level[l-1]
-            # for dict_cur in dict_level[l-1]:
-            #     if dict['id_parent'] == dict_cur['child_id']:
-            #         try:
-            #             graph[child_id].append()
-
-        return dict_level
-
-    def show_catalog(self):
-
-        qry_max_level = f"""select max(level) from view_catalog;"""
-        with self.connection.cursor() as cursor:
-            cursor.execute(qry_max_level)
-            max_level = cursor.fetchall()[0][0]
-
-        qry_directories = f"""select  id_parent,parent_name,  child_name, id_child, level from view_catalog 
-                            order by (level, id_parent) desc;"""
-        with self.connection.cursor() as cursor:
-            cursor.execute(qry_directories)
-            directories = cursor.fetchall()
-
-        cur_level_parents = {}  # здесь по ключам родителей лежат СПИСКИ детей
-        cur_child_list = []
-        cur_child = {}
-        prev_level_parents = {}  # здесь будем проверять ключи и брать те списки, которые совпадают с текущим child_id
-        prev_parent_id = 0
-        level = 0
-        parents_childs_dict = {}
-        for dir in directories:
-            try:
-                id_parent, parent_name, child_name, child_id, cur_level = dir[0], dir[1], dir[2], dir[3], dir[4]
-            except Exception:
-                print("Невозможно прочитать каталоги")
-                return -1
-            cur_child = {'id': child_id, 'name': child_name, 'child': []}
-            if prev_parent_id != id_parent:  # если это новый родитель, то список его детей обновляется
-                cur_child_list = [cur_child]
-            else:
-                cur_child_list.append(cur_child)
-            cur_level_parents[id_parent] = cur_child_list
-
-            if level != cur_level:
-                level = cur_level
-                prev_level_parents = cur_level_parents
-                try:
-                    prev_level_parents[child_id]['childs'] = cur_level_parents
-                except:
-                    pass
-        return cur_level_parents
-
-    def show_models_catalog(self):
-        qry_directories = f"""select * from models_catalog order by (level, id) desc;"""
-        with self.connection.cursor() as cursor:
-            cursor.execute(qry_directories)
-            models = cursor.fetchall()
-        catalog_dict = {}
-        catalog_list = []
-        lev = 0
-        parent_id = 0
-        cur_catalog_id = 0
-        childs = []
-        cur_catalog_list = []
-        cur_model_desc = {}
-
-        for m in models:
-            try:
-                model_id, title, catalog_id, parent_catalog_id, dir_name, level = m[0], m[1], m[2], m[3], m[4], m[5]
-            except Exception:
-                print("Невозможно прочитать модели в каталогах")
-                return -1
-            if cur_catalog_id != catalog_id:  # если данная модель находится в другом каталоге
-
-                cur_model_desc = {'ModelId': model_id, 'Title': title}
-                cur_catalog_list = [cur_model_desc]
-                cur_catalog_id = catalog_id
-                cur_catalog_dict = {'CatalogId': cur_catalog_id, 'Direct_name': dir_name}
-                catalog_list.append(cur_catalog_dict)
-                cur_catalog_dict['Models'] = cur_catalog_list
-            else:
-                cur_model_desc = {'ModelId': model_id, 'Title': title}
-                cur_catalog_list.append(cur_model_desc)
-        return catalog_list
-
-
-class Directory:
-    def __init__(self, data):
-        self.id = data  # Назначаем дату
-        self.parent = None  # Инициализируем следующий узел как «null»
-        self.childs = []
-
-    def append_child(self, val):
-        end = Directory(val)
-        n = self
-        n.childs.append(end)
-        end.parent = n
-
-
-def deep_keys(obj, arr=None, branch=None):
-    if not arr:
-        arr = []  # Список создается один раз, при первом вызове.
-    if not branch:
-        branch = {}
-    # dict = obj[0]
-    i = 0
-    for key, val in obj.items():
-        i = i + 1
-        arr.append(key)
-        branch['dir_id'] = val
-
-        if type(val) == dict:
-            deep_keys(val, arr, branch)  # Передается на заполнение в дальнейшие вызовы...
-    if i == 0:
-        print('branch end')
-        branch = None
-    return arr
 
 
 if __name__ == '__main__':
+    # db2 = DbConnection(
+    #     host='localhost',
+    #     user="postgres",
+    #     password="root",
+    #     database="pni_v12"
+    # )
+
     db2 = DbConnection(
-        host='localhost',
+        host='91.103.252.95',
         user="postgres",
-        password="root",
-        database="pni_v11"
+        password="ThermalUpPGPass",
+        database="postgres",
+        port=3100
     )
 
-    v = []
-    v.append(db2.show_catalog2())
-    print(v[0])
-    tree = {'a': {'b': {'c': {}, 'd': {}}, 'e': {}, 'f': {}, 'g': {}}}
-    print(deep_keys(v[0]))
-    db2.show_models_in_catalog(v)
+
+    print(json.dumps(db2.get_catalogs()))
