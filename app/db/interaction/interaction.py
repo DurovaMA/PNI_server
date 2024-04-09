@@ -25,10 +25,12 @@ class DbConnection:
             self["CatalogName"] = name
 
     class CatalogModel(dict):
-        def __init__(self, model_id, model_name):
-            dict.__init__(self, ModelId=model_id, Title=model_name)
+        def __init__(self, model_id, model_name, versions):
+            dict.__init__(self, ModelId=model_id, Title=model_name, Versions=versions)
 
-
+    class CatalogVersionModel(dict):
+        def __init__(self, model_id, user_id, version_id, note, vers_num):
+            dict.__init__(self, ModelId=model_id, UserId=user_id, VersionId=version_id, NoteText=note, VersNum=vers_num)
 
     def get_envs_info(self):
 
@@ -69,7 +71,6 @@ class DbConnection:
         # else:
         #    raise ParametrNotFoundException('Environments not found!')
 
-
     def get_model_catalog_info(self):
         qry_all = f"""select * from directory order by id desc;"""
         qry_models = f"""select directory_fk, model_fk, title  from directory_model inner join model_of_block on directory_model.model_fk = model_of_block.id;"""
@@ -109,6 +110,68 @@ class DbConnection:
                 level_stack[len(level_stack) - 1]["Children"].append(new_children)
                 level_stack.append(new_children)
         return dirs_tree_root
+
+    def get_catalog_version_info(self):
+        qry_all = f"""select * from directory order by id desc;"""
+        qry_models = f"""select directory_fk, model_fk, title  from directory_model inner join model_of_block on 
+        directory_model.model_fk = model_of_block.id;"""
+        qry_versions = f"""select user_fk , id,   note, model_fk, vers_num  from version where table_type = 'Model';"""
+        with self.connection.cursor() as cursor:
+            cursor.execute(qry_all)
+            dirs = cursor.fetchall()
+            cursor.execute(qry_models)
+            all_models = cursor.fetchall()
+            cursor.execute(qry_versions)
+            all_versions = cursor.fetchall()
+        # print(dirs)
+        print(all_models)
+
+        dirs_tree_root = self.Directory()
+        dirs_tree_root.set_id_and_name(0, "__root__")
+        level_stack = [dirs_tree_root]
+        # print(dirs_tree_root)
+        # print(level_stack)
+
+        while len(level_stack) > 0:
+            current_catalog_id = (level_stack[len(level_stack) - 1])["CatalogId"]
+            current_catalog_id = None if current_catalog_id == 0 else current_catalog_id
+            # print(current_catalog_id)
+            founded_children = [x for x in dirs if x[2] == current_catalog_id]
+            # print(founded_children)
+            if len(founded_children) == 0:
+                print("levelUp")
+                dirs = [x for x in dirs if x[0] != current_catalog_id]
+                # Вот тут надо написать код по напихиванию в Models моделей
+                founded_models = [model for model in all_models if model[0] == current_catalog_id]
+                models_with_versions = []
+                for f_model in founded_models:
+                    founded_versions = [version for version in all_versions if version[3] == f_model[1]]
+                    if len(founded_versions) != 0:
+                        versions = list(
+                            map(lambda x: self.CatalogVersionModel(x[3], x[0], x[1], x[2], x[4]), founded_versions))
+                    else:
+                        versions = []
+                    v_of_model = [versions, f_model]
+                    models_with_versions.append(v_of_model)
+                models = list(map(lambda x: self.CatalogModel(x[1][1], x[1][2], x[0]), models_with_versions))
+                print(models)
+                removed = level_stack.pop()
+                removed["Models"].extend(models)
+            else:
+                print("Processed ", founded_children[0][0])
+                new_children = self.Directory()
+                new_children.set_id_and_name(founded_children[0][0], founded_children[0][1])
+                level_stack[len(level_stack) - 1]["Children"].append(new_children)
+                level_stack.append(new_children)
+        return dirs_tree_root
+
+    def get_creating_info(self, model_id):
+        qry = f"""select objectstr  from version where model_fk = {model_id} and vers_num =0 ;"""
+        with self.connection.cursor() as cursor:
+            cursor.execute(qry)
+            objectstr = cursor.fetchall()
+        return objectstr
+
     def get_models_info(self):
         qry = f"""select * from model_of_block;"""
         with self.connection.cursor() as cursor:
@@ -164,10 +227,9 @@ class DbConnection:
             problem_text += problem_params
             critical_flag += flag_params
 
-
             expressions_list = func_sql_show.show_expressions \
                 (model_id, expressions, self.connection)
-            #problem_text += problem_expressions
+            # problem_text += problem_expressions
             # critical_flag += flag_expression
 
             if (critical_flag > 0) or ((len(input_flows_list) < 1) and (len(output_flows_list) < 1)):
@@ -183,6 +245,74 @@ class DbConnection:
 
         print('\n'.join(map(str, problem_list)))
         return description_list, description_dict
+
+    def get_model(self, model_pk):
+        qry = f"""select * from model_of_block where id={model_pk};"""
+        with self.connection.cursor() as cursor:
+            cursor.execute(qry)
+            model = cursor.fetchall()[0]
+        problem_text = ""
+
+        if len(model) == 0:
+            problem_text += "Такой модели в базе нет"
+            return []
+
+        model_id = model[0]
+        title = model[1]
+        description = model[2]
+        input_flows = model[4]
+        output_flows = model[5]
+        default_params = model[6]
+        extra_params = model[7]
+        expressions = model[8]
+
+        critical_flag = False
+
+        input_flows_list, problem_flow, flag_flow = func_sql_show.show_flows \
+            (model_id, "input", input_flows, self.connection)
+        problem_text += problem_flow
+        critical_flag += flag_flow
+        output_flows_list, problem_flow, flag_flow = func_sql_show.show_flows \
+            (model_id, "output", output_flows, self.connection)
+        problem_text += problem_flow
+        critical_flag += flag_flow
+
+        if extra_params != []:
+            extra_params_list, problem_params, flag_params = func_sql_show.show_extra_default_params \
+                (model_id, "extra", extra_params, self.connection)
+        else:
+            extra_params_list = []
+            problem_params = ("в модели %s нет дополнительных параметров" % (model_id))
+            flag_params = 0
+        problem_text += problem_params
+        critical_flag += flag_params
+
+        if default_params != []:
+            default_params_list, problem_params, flag_params = func_sql_show.show_extra_default_params \
+                (model_id, "default", default_params, self.connection)
+        else:
+            default_params_list = []
+            problem_params = ("в модели %s нет параметров по умолчанию" % (model_id))
+            flag_params = 0
+
+        problem_text += problem_params
+        critical_flag += flag_params
+
+        expressions_list = func_sql_show.show_expressions \
+            (model_id, expressions, self.connection)
+        # problem_text += problem_expressions
+        # critical_flag += flag_expression
+
+        if (critical_flag > 0) or ((len(input_flows_list) < 1) and (len(output_flows_list) < 1)):
+            problem_text += ("\nМодель номер %d не будет отображена\n" % model_id)
+        else:
+            model_desc = {'ModelId': model_id, 'Title': title, 'Description': description,
+                          'InputFlows': input_flows_list, 'OutputFlows': output_flows_list,
+                          'DefaultParameters': default_params_list, 'CustomParameters': extra_params_list,
+                          'Expressions': expressions_list}
+
+        print('\n'.join(map(str, problem_text)))
+        return model_desc
 
     def get_info_model(self):
         '''Функция для создания аналога в графовой БД. Возвращает инфо об одной модели'''
@@ -240,10 +370,9 @@ class DbConnection:
             problem_text += problem_params
             critical_flag += flag_params
 
-
             expressions_list = func_sql_show.show_expressions \
                 (model_id, expressions, self.connection)
-            #problem_text += problem_expressions
+            # problem_text += problem_expressions
             # critical_flag += flag_expression
 
             if (critical_flag > 0) or ((len(input_flows_list) < 1) and (len(output_flows_list) < 1)):
@@ -264,8 +393,8 @@ class DbConnection:
         instance_info = func_sql_show.info_instance(model_id, self.connection)
         return instance_info
 
-    def create_model(self, model_description, model_title, in_flows, out_flows, default_params, extra_params,
-                     calculations):
+    def create_model(self, user_id, model_description, model_title, in_flows, out_flows, default_params, extra_params,
+                     calculations, full_json, directory):
         # массив переменных модели, фигурирующих в ней от потоков
         id_flow_params_list = []
 
@@ -283,16 +412,19 @@ class DbConnection:
         # dup = func_sql.check_dup(model_title, model_description, self.connection)
 
         # создание записи в таблице model_of_block
-        id_model = func_sql_insert.create_new_model(model_title, model_description, self.connection)
+        id_model = func_sql_insert.create_new_model(user_id, model_title, model_description, full_json, directory, self.connection)
+        if id_model == -1:
+            return -1
 
         # создание группы дополнительных параметров в таблице group_par и записей о ней в таблицах parametr,
         # parametr_group, param_of_model и all_inclusions.
         # Возвращает идентификатор группы из таблицы group_par и массив идентификаторов в таблице param_of_model
         id_group_extr, id_extra_params_list = func_sql_insert.add_extra_def_params('extra_params', 'extra', id_model,
-                                                                            extra_params, self.connection)
+                                                                                   extra_params, self.connection)
         # Аналогично для параметров по умолчанию
-        id_group_def, id_default_params_list = func_sql_insert.add_extra_def_params('default_params', 'default', id_model,
-                                                                             default_params, self.connection)
+        id_group_def, id_default_params_list = func_sql_insert.add_extra_def_params('default_params', 'default',
+                                                                                    id_model,
+                                                                                    default_params, self.connection)
         if id_default_params_list == -1 or id_extra_params_list == -1:
             func_sql_insert.delete_model(id_model, self.connection)
             return -1
@@ -335,11 +467,94 @@ class DbConnection:
                     output_flows=ARRAY{id_flows_model_output}::integer[{len_out_flows}], 
                     default_params =ARRAY{id_default_params_list}::integer[{len_def_params}],
                     extra_params =ARRAY{id_extra_params_list}::integer[{len_ext_params}], 
-                     expressions =ARRAY{id_calcs_list}::integer[{len_calcs}]
+                     expressions =ARRAY{id_calcs_list}::integer[{len_calcs}],
+                     model_id={id_model}
                     where id = {id_model};"""
             with self.connection.cursor() as cursor:
                 cursor.execute(qry)
             return id_model
+        else:
+            return -1
+            raise ModelProblems('Не удалось добавить модель!')
+
+    def create_version(self, user_id, model_id, note, model_description, model_title, in_flows, out_flows,
+                       default_params, extra_params, calculations):
+        # массив переменных модели, фигурирующих в ней от потоков
+        id_flow_params_list = []
+
+        all_params = default_params + extra_params
+        list_params = []
+        for param in all_params:
+            symbol = param['Symbol']
+            list_params.append(symbol)
+        visited = set()
+        dup = [x for x in list_params if x in visited or (visited.add(x) or False)]
+        if dup != []:
+            print("Дублируются параметры: ", dup)  # [1, 5, 1]
+            return -1
+
+        # dup = func_sql.check_dup(model_title, model_description, self.connection)
+
+        # создание записи в таблице model_of_block
+        model_pk, version_id = func_sql_insert.create_new_version(
+            user_id, model_id, note, model_title, model_description, self.connection)
+
+        # создание группы дополнительных параметров в таблице group_par и записей о ней в таблицах parametr,
+        # parametr_group, param_of_model и all_inclusions.
+        # Возвращает идентификатор группы из таблицы group_par и массив идентификаторов в таблице param_of_model
+        id_group_extr, id_extra_params_list = func_sql_insert.add_extra_def_params('extra_params', 'extra', model_pk,
+                                                                                   extra_params, self.connection)
+        # Аналогично для параметров по умолчанию
+        id_group_def, id_default_params_list = func_sql_insert.add_extra_def_params('default_params', 'default',
+                                                                                    model_pk,
+                                                                                    default_params, self.connection)
+        if id_default_params_list == -1 or id_extra_params_list == -1:
+            func_sql_insert.delete_model(model_pk, self.connection)
+            return -1
+        if id_group_extr == 0 or id_extra_params_list == 0:
+            print("нет extra параметров")
+
+        # Создает записи о входных и выходных потоках, возвращает массивы идентификаторов из таблицы flow
+        id_flows_model_input = func_sql_insert.add_flow(model_pk, 'input', in_flows, self.connection)
+        id_flows_model_output = func_sql_insert.add_flow(model_pk, 'output', out_flows, self.connection)
+
+        if id_flows_model_input == -1 or id_flows_model_output == -1:
+            func_sql_insert.delete_model(model_pk, self.connection)
+            return -1
+
+        # Объединяет массивы входных и выходных потоков
+        flows_model = id_flows_model_input + id_flows_model_output
+
+        for flow in flows_model:
+            id_flow_params = func_sql_insert.add_params_from_flow(model_pk, flow, self.connection)
+            if id_flow_params == -1:
+                func_sql_insert.delete_model(model_pk, self.connection)
+                return -1
+            id_flow_params_list = id_flow_params_list + id_flow_params
+
+        # массив рассчетных выражений модели
+        id_calcs_list = func_sql_insert.add_calc(model_pk, calculations, self.connection)
+
+        if id_calcs_list == -1:
+            func_sql_insert.delete_model(model_pk, self.connection)
+            return -1
+
+        if id_calcs_list != -1 and id_extra_params_list != -1 and id_default_params_list != -1 and id_flow_params_list != -1:
+            print('Добавлена версия номер ', version_id)
+            len_in_flows = len(id_flows_model_input)
+            len_out_flows = len(id_flows_model_output)
+            len_def_params = len(id_default_params_list)
+            len_ext_params = len(id_extra_params_list)
+            len_calcs = len(id_calcs_list)
+            qry = f"""update model_of_block set input_flows=ARRAY{id_flows_model_input}::integer[{len_in_flows}],
+                    output_flows=ARRAY{id_flows_model_output}::integer[{len_out_flows}], 
+                    default_params =ARRAY{id_default_params_list}::integer[{len_def_params}],
+                    extra_params =ARRAY{id_extra_params_list}::integer[{len_ext_params}], 
+                     expressions =ARRAY{id_calcs_list}::integer[{len_calcs}]
+                    where id = {model_pk};"""
+            with self.connection.cursor() as cursor:
+                cursor.execute(qry)
+            return model_pk, version_id
         else:
             return -1
             raise ModelProblems('Не удалось добавить модель!')
@@ -354,7 +569,7 @@ class DbConnection:
 
         instances_dict = {}
         for ins in instances:
-            #ins = instances[i]
+            # ins = instances[i]
             client_instance_id = ins["BlockInstanceId"]
             model_id = ins["BlockModel"]["ModelId"]
             top = ins["OffsetTop"]
@@ -379,6 +594,7 @@ class DbConnection:
                                                       flow_output_id, flow_input_id)
 
         return id_schema
+
     def show_all_schemas(self):
         qry_all_schemas = f"""select id, schema_name from schema;"""
         with self.connection.cursor() as cursor:
@@ -422,10 +638,10 @@ class DbConnection:
             for var in def_vars:
                 var_dict = {"VariableId": var[2], "Value": var[4]}
                 vars_list.append(var_dict)
-            instance_dict = {"OffsetLeft": position_left, "OffsetTop": position_top, "BlockModel": {"ModelId": model_id},
+            instance_dict = {"OffsetLeft": position_left, "OffsetTop": position_top,
+                             "BlockModel": {"ModelId": model_id},
                              "BlockInstanceId": instance_id, "DefaultVariables": vars_list}
             instances_list.append(instance_dict)
-
 
         qry_interconnections = f"""select * from schema_flows where schema_fk = {schema_id};"""
         with self.connection.cursor() as cursor:
@@ -434,12 +650,16 @@ class DbConnection:
 
         interconnections_list = []
         for intercon in all_interconnections:
-            block_output_id, block_input_id, flow_output_id, flow_input_id = intercon[1], intercon[2], intercon[4], intercon[5]
-            interconnections_dict = {"InputFlowConnector": {"BlockInstanceID": block_output_id, "FlowID": flow_output_id },
-                                     "OutputFlowConnector": {"BlockInstanceID": block_input_id, "FlowID": flow_input_id}}
+            block_output_id, block_input_id, flow_output_id, flow_input_id = intercon[1], intercon[2], intercon[4], \
+            intercon[5]
+            interconnections_dict = {
+                "InputFlowConnector": {"BlockInstanceID": block_output_id, "FlowID": flow_output_id},
+                "OutputFlowConnector": {"BlockInstanceID": block_input_id, "FlowID": flow_input_id}}
             interconnections_list.append(interconnections_dict)
-        schema_dict = {"SchemaId": schema_id, "SchemaName": schema_name, "BlockInstanсes": instances_list, "BlockInterconnections": interconnections_list}
+        schema_dict = {"SchemaId": schema_id, "SchemaName": schema_name, "BlockInstanсes": instances_list,
+                       "BlockInterconnections": interconnections_list}
         return schema_dict
+
     def create_topography(self, x, y):
         topog_id = func_sql_insert.create_topography(x, y, self.connection)
         return topog_id
@@ -453,7 +673,8 @@ class DbConnection:
         return poi_id
 
     def insert_schema_flow(self, from_instance, to_instance, schema, from_flow, to_flow):
-        poi_id = func_sql_insert.insert_schema_flow(from_instance, to_instance, schema, from_flow, to_flow, self.connection)
+        poi_id = func_sql_insert.insert_schema_flow(from_instance, to_instance, schema, from_flow, to_flow,
+                                                    self.connection)
         return poi_id
 
 

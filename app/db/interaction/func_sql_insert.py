@@ -1,18 +1,26 @@
-def create_new_model(user_id, tit, description, con):
+def create_new_model(user_id, tit, description, full_json, directory,  con):
     """Создает записи о новой модели. Принимает название, описание и
     соединение с БД возвращает идентификатор добавленной модели"""
     qry_model = f"""INSERT    INTO    public.model_of_block    (title, description, status, status_block)    
                 VALUES('{tit}', '{description}', 'Developing'::types_status, 'Free')  RETURNING    id   ;"""
 
-    with con.cursor() as cursor:
-        cursor.execute(qry_model)
-        model_id = cursor.fetchall()[0][0]
-        qry_version = f"""INSERT INTO public."version" ( user_fk, model_fk, table_type, stamptime, vers_num) 
-                    VALUES({user_id}, {model_id}, 'Model', NOW(), 0) RETURNING    id; """
-        cursor.execute(qry_version)
-        version_id = cursor.fetchall()[0][0]
-        qry_version_2 = f"""update model_of_block set version_fk={version_id}  where id = {model_id};"""
-        cursor.execute(qry_version_2)
+    try:
+        with con.cursor() as cursor:
+            cursor.execute(qry_model)
+            model_id = cursor.fetchall()[0][0]
+
+            qry_directory = f"""INSERT INTO public.directory_model (model_fk, directory_fk) values ({model_id}, {directory});"""
+            cursor.execute(qry_directory)
+
+            qry_version = f"""INSERT INTO public."version" ( user_fk, model_fk, table_type, stamptime, vers_num, objectstr) 
+                        VALUES({user_id}, {model_id}, 'Model', NOW(), 0, '{full_json}') RETURNING    id; """
+            cursor.execute(qry_version)
+            version_id = cursor.fetchall()[0][0]
+            qry_version_2 = f"""update model_of_block set version_fk={version_id}  where id = {model_id};"""
+            cursor.execute(qry_version_2)
+    except:
+        delete_model(model_id, con)
+        return -1
     return model_id
 
 def create_new_version(user_id, model_id, note, tit, description, con, version_id=None):

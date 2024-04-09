@@ -1,3 +1,4 @@
+import json
 import threading
 # import requests
 import argparse
@@ -24,11 +25,15 @@ class Server:
 
         self.app = Flask(__name__)
         self.app.add_url_rule('/', view_func=self.get_home)
-        self.app.add_url_rule('/get_models', view_func=self.get_models_info)
-        self.app.add_url_rule('/get_model_catalog', view_func=self.get_model_catalog_info)
+        self.app.add_url_rule('/get_models', view_func=self.get_models_info) #отображение всех моделей
+        #self.app.add_url_rule('/get_model/<int:model_pk>', view_func=self.get_model)
+        #self.app.add_url_rule('/get_model_catalog', view_func=self.get_model_catalog_info)
+        self.app.add_url_rule('/get_version_catalog', view_func=self.get_catalog_version_info) #каталог (с версиями)
         #self.app.add_url_rule('/get_catalog', view_func=self.get_catalog_info)
-        self.app.add_url_rule('/get_info_model/<string:name_model>', view_func=self.get_info_model)
+        #self.app.add_url_rule('/get_info_model/<string:name_model>', view_func=self.get_info_model)
+        self.app.add_url_rule('/get_creating_info/<string:model_id>', view_func=self.get_creating_info) #json для создания 0 версии модели
         self.app.add_url_rule('/create_model', view_func=self.add_model_info, methods=['POST'])
+        self.app.add_url_rule('/create_version_model/<string:model_id>', view_func=self.add_version_model, methods=['POST'])
         self.app.add_url_rule('/create_schema', view_func=self.add_schema_info, methods=['POST'])
         self.app.add_url_rule('/show_all_schemas', view_func=self.show_all_schemas_info)
         self.app.add_url_rule('/show_schema/<int:id_schema>', view_func=self.show_schema_info)
@@ -75,8 +80,14 @@ class Server:
     def get_models_info(self):
         '''Возвращает json со всеми моделями'''
         try:
-
             models_info = self.db_connect.get_models_info()[0]
+            return models_info, 200
+        except ModelProblems as m_problem:
+            abort(404, description=m_problem)
+    def get_model(self, model_pk):
+        '''Возвращает json с моделью по ее номеру'''
+        try:
+            models_info = self.db_connect.get_model(model_pk)
             return models_info, 200
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
@@ -100,12 +111,29 @@ class Server:
             return models_info, 200
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
+
+    def get_creating_info(self, model_id):
+        '''Возвращает json информацией о создании модели'''
+        try:
+            creating_info = self.db_connect.get_creating_info(model_id)
+            res = json.dumps(creating_info, ensure_ascii=False)
+            return res, 200
+        except ModelProblems as m_problem:
+            abort(404, description=m_problem)
+    def get_catalog_version_info(self):
+        '''Возвращает json со всеми моделями плюс каталогами плюс версии'''
+        try:
+            models_info = self.db_connect.get_catalog_version_info()
+            return models_info, 200
+        except ModelProblems as m_problem:
+            abort(404, description=m_problem)
+
+
     def get_info_model(self, name_model):
         '''Функция для создания аналога в графовой БД. Возвращает инфо об одной модели'''
         try:
             path = os.path.join(os.getcwd(), f'/app/db/scripts/{name_model}.json');
             print("Путь до каталогов", path)
-            #models_info = open(f'C:/GitHub/PNI_server/app/db/scripts/{name_model}.json', 'r', encoding="utf-8")
             models_info = open(f'path', 'r', encoding="utf-8")
             res = models_info.read()
             return res, 200
@@ -129,8 +157,33 @@ class Server:
             abort(404, description=m_problem)
 
     def add_model_info(self):
+
         model_info = dict(request.json)
+        js = json.dumps(model_info, ensure_ascii=False)
         model_id = self.db_connect.create_model(
+            user_id=model_info['UserId'],
+            model_description=model_info['Description'],
+            model_title=model_info['Title'],
+            in_flows=model_info['InputFlows'],
+            out_flows=model_info['OutputFlows'],
+            default_params=model_info['DefaultParameters'],
+            extra_params=model_info['ExtraParameters'],
+            calculations=model_info['Expressions'],
+            full_json=js,
+            directory=model_info['DirectoryId']
+        )
+        if model_id == -1:
+            return f'Модель не может быть добавлена', 400
+        else:
+            return f'Success added {model_id}', 201
+
+    def add_version_model(self):
+        model_info = dict(request.json)
+        model_id = model_info['ModelId']
+        model_pk, version_id = self.db_connect.create_version(
+            model_id=model_id,
+            user_id=model_info['UserId'],
+            note=model_info['Note'],
             model_description=model_info['Description'],
             model_title=model_info['Title'],
             in_flows=model_info['InputFlows'],
@@ -140,9 +193,9 @@ class Server:
             calculations=model_info['Expressions']
         )
         if model_id == -1:
-            return f'Модель не может быть добавлена', 400
+            return f'Версия модели не может быть добавлена', 400
         else:
-            return f'Success added {model_id}', 201
+            return f'Success added version {version_id} for model {model_id} (record {model_pk})', 201
 
     def add_schema_info(self):
         schema_info = dict(request.json)
