@@ -1,14 +1,40 @@
-def create_new_model(tit, description, con):
+def create_new_model(user_id, tit, description, con):
     """Создает записи о новой модели. Принимает название, описание и
     соединение с БД возвращает идентификатор добавленной модели"""
-    qry = f"""INSERT    INTO    public.model_of_block    (title, description, status)    
-    VALUES('{tit}', '{description}', 'Developing'::types_status)   RETURNING    id   ;"""
-    # qry2 = f"""select create_model('{tit}', '{description}');"""
-    with con.cursor() as cursor:
-        cursor.execute(qry)
-        res_id = cursor.fetchall()[0][0]
-    return res_id
+    qry_model = f"""INSERT    INTO    public.model_of_block    (title, description, status, status_block)    
+                VALUES('{tit}', '{description}', 'Developing'::types_status, 'Free')  RETURNING    id   ;"""
 
+    with con.cursor() as cursor:
+        cursor.execute(qry_model)
+        model_id = cursor.fetchall()[0][0]
+        qry_version = f"""INSERT INTO public."version" ( user_fk, model_fk, table_type, stamptime, vers_num) 
+                    VALUES({user_id}, {model_id}, 'Model', NOW(), 0) RETURNING    id; """
+        cursor.execute(qry_version)
+        version_id = cursor.fetchall()[0][0]
+        qry_version_2 = f"""update model_of_block set version_fk={version_id}  where id = {model_id};"""
+        cursor.execute(qry_version_2)
+    return model_id
+
+def create_new_version(user_id, model_id, note, tit, description, con, version_id=None):
+    """Создает запись о новой версии модели. Принимает номер модели, название, описание и
+    соединение с БД возвращает идентификатор добавленной модели"""
+    qry_last_version = f"""SELECT  max(vers_num) FROM version where model_fk ={model_id};"""
+
+
+    with con.cursor() as cursor:
+        cursor.execute(qry_last_version)
+        last_version = cursor.fetchall()[0][0]
+
+        qry_version = f"""INSERT INTO public."version" ( user_fk, model_fk, table_type, stamptime, note, vers_num) 
+                VALUES({user_id}, {model_id}, 'Model', NOW(), '{note}', {last_version + 1}) RETURNING    id; """
+        cursor.execute(qry_version)
+        version_id = cursor.fetchall()[0][0]
+
+        qry_model = f"""INSERT INTO public.model_of_block (title, description, status, status_block, model_id, version_fk)
+            VALUES('{tit}', '{description}', 'Developing'::types_status, 'Free', {model_id}, {version_id}) RETURNING  id ;"""
+        cursor.execute(qry_model)
+        model_pk = cursor.fetchall()[0][0]
+    return model_pk, version_id
 
 def cursor_add_extra_def_param(model, gop_id, p_type, tit, sym, un, type_incl, con):
     par_m_id_list = []
