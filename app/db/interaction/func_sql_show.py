@@ -1,5 +1,8 @@
+import argparse
 import json
+import os
 
+from app.api.utils import config_parser
 from app.db.interaction import func_sql
 from app.db.exceptions import ModelProblems
 import psycopg2
@@ -340,12 +343,21 @@ if __name__ == '__main__':
     #     database="pni_v12"
     # )
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config', type=str, dest='config')
+
+    args = parser.parse_args()
+
+    config = config_parser(args.config)
+
+    print("sql_func_started")
+
     db2 = DbConnection(
-        host='91.103.252.95',
+        host=os.environ.get('DB_HOST',config['DB_HOST']),
         user="postgres",
         password="ThermalUpPGPass",
         database="postgres",
-        port=3100
+        port=os.environ.get('DB_PORT',config['DB_PORT'])
     )
 
 
