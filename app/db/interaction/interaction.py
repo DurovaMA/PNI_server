@@ -393,6 +393,10 @@ class DbConnection:
         instance_info = func_sql_show.info_instance(model_id, self.connection)
         return instance_info
 
+    def generate_info_instance(self, model_id, vers_num):
+        instance_info = func_sql_show.generate_info_instance(model_id, self.connection, vers_num)
+        return instance_info
+
     def create_model(self, user_id, model_description, model_title, in_flows, out_flows, default_params, extra_params,
                      calculations, full_json, directory):
         # массив переменных модели, фигурирующих в ней от потоков

@@ -202,6 +202,73 @@ def info_instance(mod_id, con):
     return calc_list
 
 
+def generate_info_instance(mod_id, con, vers_num: int = 0):
+    qry = f"""select mob.id , mob.title, mob.model_id , mob.version_fk , v.id , v.model_fk , v.vers_num 
+    from model_of_block mob join "version" v on mob.version_fk  =v.id  
+    where mob.model_id={mod_id} and v.vers_num ={vers_num};"""
+    with con.cursor() as cursor:
+        cursor.execute(qry)
+        mod_pk = cursor.fetchall()[0][0]
+
+    qry = f"""select * from show_calc_defined where model={mod_pk};"""
+    with con.cursor() as cursor:
+        cursor.execute(qry)
+        result_sql = cursor.fetchall()
+    def_dict = {}
+    calc_var_dict = {}
+    for calc in result_sql:
+        try:
+            param_of_model = calc[1]
+            exp_id = calc[2]
+            needed_var = calc[5]
+            type = calc[6]
+            par_id = calc[7]
+        except Exception:
+            print("Ошибка в ключах calculation")
+            return -1
+        calc_var_dict[exp_id] = [param_of_model, needed_var]
+        var_info = {'name': needed_var, 'type': type, 'pom_id': param_of_model, 'p_id': par_id}
+        def_dict[exp_id] = var_info
+
+    qry = f"""select * from show_calc_required where model={mod_pk};"""
+    with con.cursor() as cursor:
+        cursor.execute(qry)
+        result_sql = cursor.fetchall()
+    calc_list = []
+    cur_calc = -1
+    for calc in result_sql:
+        try:
+            param_of_model = calc[1]
+            exp_id = calc[2]
+            order = calc[3]
+            exp = calc[4]
+            needed_var = calc[5]
+            type = calc[6]
+            par_id = calc[7]
+        except Exception:
+            print("Ошибка в ключах calculation")
+            return -1
+        if cur_calc != exp_id:  # если это новое выражение
+            cur_calc = exp_id
+            dev_info = def_dict[exp_id]
+            dict = {'ExpressionId': exp_id, 'Order': order, 'Expression': exp,
+                    'NeededVariables': [], 'DefinedVariable': [dev_info]}
+            needed_var_dict = {}
+            needed_list = []
+            var_info = {'name': needed_var, 'type': type, 'pom_id': param_of_model, 'p_id': par_id}
+            needed_list.append(var_info)
+            dict['NeededVariables'] = needed_list
+            calc_list.append(dict)
+        else:
+            var_info = {'name': needed_var, 'type': type, 'pom_id': param_of_model, 'p_id': par_id}
+            needed_list.append(var_info)
+            dict['NeededVariables'] = needed_list
+
+    for ex in calc_list:
+        print(ex)
+    return calc_list
+
+
 class DbConnection:
     def __init__(self, host, user, password, database, port=5432):
         self.connection = psycopg2.connect(
@@ -225,7 +292,6 @@ class DbConnection:
     class CatalogModel(dict):
         def __init__(self, model_id, model_name):
             dict.__init__(self, ModelId=model_id, Title=model_name)
-
 
     def model_info(self, model_id):
         qry = f"""select * from model_of_block where id={model_id};"""
@@ -291,7 +357,6 @@ class DbConnection:
             description_list.append(model_desc)
             return description_list
 
-
     def get_catalogs(self):
         qry_all = f"""select * from directory order by id desc;"""
         qry_models = f"""select directory_fk, model_fk, title  from directory_model inner join model_of_block on directory_model.model_fk = model_of_block.id;"""
@@ -334,7 +399,6 @@ class DbConnection:
         return dirs_tree_root
 
 
-
 if __name__ == '__main__':
     # db2 = DbConnection(
     #     host='localhost',
@@ -359,6 +423,5 @@ if __name__ == '__main__':
         database="postgres",
         port=os.environ.get('DB_PORT',config['DB_PORT'])
     )
-
 
     print(json.dumps(db2.get_catalogs()))

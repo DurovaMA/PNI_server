@@ -1,6 +1,5 @@
 import json
 import threading
-# import requests
 import argparse
 import os
 
@@ -25,42 +24,51 @@ class Server:
 
         self.app = Flask(__name__)
         self.app.add_url_rule('/', view_func=self.get_home)
-        self.app.add_url_rule('/get_models', view_func=self.get_models_info) #отображение всех моделей
-        #self.app.add_url_rule('/get_model/<int:model_pk>', view_func=self.get_model)
-        #self.app.add_url_rule('/get_model_catalog', view_func=self.get_model_catalog_info)
-        self.app.add_url_rule('/get_version_catalog', view_func=self.get_catalog_version_info) #каталог (с версиями)
-        #self.app.add_url_rule('/get_catalog', view_func=self.get_catalog_info)
-        #self.app.add_url_rule('/get_info_model/<string:name_model>', view_func=self.get_info_model)
-        self.app.add_url_rule('/get_creating_info/<string:model_id>', view_func=self.get_creating_info) #json для создания 0 версии модели
+
+        # создание модели
         self.app.add_url_rule('/create_model', view_func=self.add_model_info, methods=['POST'])
-        self.app.add_url_rule('/create_version_model/<string:model_id>', view_func=self.add_version_model, methods=['POST'])
+
+        # создание версии модели
+        self.app.add_url_rule('/create_version_model', view_func=self.add_version_model, methods=['POST'])
+
+        # создание схемы
         self.app.add_url_rule('/create_schema', view_func=self.add_schema_info, methods=['POST'])
-        self.app.add_url_rule('/show_all_schemas', view_func=self.show_all_schemas_info)
-        self.app.add_url_rule('/show_schema/<int:id_schema>', view_func=self.show_schema_info)
+
+
+        # инфо об экземпляре
         self.app.add_url_rule('/get_instance', view_func=self.get_instance_info, methods=['POST'])
+
+
+        # отображение всех моделей
+        self.app.add_url_rule('/get_models', view_func=self.get_models_info)
+
+        # каталог (с версиями)
+        self.app.add_url_rule('/get_version_catalog', view_func=self.get_catalog_version_info)
+
+        # отображение информации по созданию модели по номеру
+        self.app.add_url_rule('/get_creating_info/<int:model_id>', view_func=self.get_creating_info)
+
+        # отображение модели по номеру
+        self.app.add_url_rule('/get_model/<int:model_pk>', view_func=self.get_model)
+
+        # отобразить все схемы
+        self.app.add_url_rule('/show_all_schemas', view_func=self.show_all_schemas_info)
+
+        # инфо о схеме по номеру
+        self.app.add_url_rule('/show_schema/<int:id_schema>', view_func=self.show_schema_info)
+
+        # генерация информации об экземпляре модели
+        self.app.add_url_rule('/generate_instance/<int:id_model>/<int:vers_num>', view_func=self.generate_instance_info)
+
+        # отображение сред
         self.app.add_url_rule('/get_envs', view_func=self.get_envs_info)
 
 
         self.app.add_url_rule('/test_zapros', view_func=self.test, methods=['POST'])
 
-        #удалить - для демонстрации сравнения реляционной базы с графовой
-        self.app.add_url_rule('/insert_relations', view_func=self.insert_relations)
-        self.app.add_url_rule('/insert_users', view_func=self.insert_users)
-
-
         self.app.register_error_handler(404, self.page_not_found)
 
-    def insert_users(self):
-        inserted = self.db_connect.insert_users()
-        print(inserted)
 
-        return f'Success added', 201
-    def insert_relations(self):
-
-        inserted = self.db_connect.insert_relations()
-        print(inserted)
-
-        return f'Success added', 201
     def test(self):
         request_body = dict(request.json)
         print(request_body)
@@ -91,18 +99,6 @@ class Server:
             return models_info, 200
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
-
-    # def get_model_catalog_info(self):
-    #     '''Возвращает json со всеми моделями плюс каталогами'''
-    #     try:
-    #         path = os.path.join(os.getcwd(),f'/app/db/scripts/catalogs.json');
-    #         print("Путь до каталогов", path)
-    #         #models_info = open(f'C:/GitHub/PNI_server/app/db/scripts/catalogs.json', 'r', encoding="utf-8")
-    #         models_info = open(path, 'r', encoding="utf-8")
-    #         res = models_info.read()
-    #         return res, 200
-    #     except ModelProblems as m_problem:
-    #         abort(404, description=m_problem)
 
     def get_model_catalog_info(self):
         '''Возвращает json со всеми моделями плюс каталогами'''
@@ -152,6 +148,13 @@ class Server:
         model_id = model['model']
         try:
             instance_info = self.db_connect.get_info_instance(model_id)
+            return instance_info, 200
+        except ModelProblems as m_problem:
+            abort(404, description=m_problem)
+
+    def generate_instance_info(self, id_model, vers_num):
+        try:
+            instance_info = self.db_connect.generate_info_instance(id_model, vers_num)
             return instance_info, 200
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
