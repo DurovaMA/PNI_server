@@ -269,6 +269,9 @@ def generate_info_instance(mod_id, con, vers_num: int = 0):
     return calc_list
 
 
+
+
+
 class DbConnection:
     def __init__(self, host, user, password, database, port=5432):
         self.connection = psycopg2.connect(

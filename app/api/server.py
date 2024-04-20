@@ -38,6 +38,8 @@ class Server:
         # инфо об экземпляре
         self.app.add_url_rule('/get_instance', view_func=self.get_instance_info, methods=['POST'])
 
+        # инфо о массиве версий
+        self.app.add_url_rule('/get_versions', view_func=self.get_versions_info, methods=['POST'])
 
         # отображение всех моделей
         self.app.add_url_rule('/get_models', view_func=self.get_models_info)
@@ -149,6 +151,15 @@ class Server:
         try:
             instance_info = self.db_connect.get_info_instance(model_id)
             return instance_info, 200
+        except ModelProblems as m_problem:
+            abort(404, description=m_problem)
+
+    def get_versions_info(self):
+        array_ids = dict(request.json)
+        version_list = array_ids['Versions']
+        try:
+            versions_info = self.db_connect.get_versions_info(version_list)
+            return versions_info, 200
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
 

@@ -257,7 +257,6 @@ class DbConnection:
                 problem_text += "Такой модели в базе нет"
                 return []
 
-
         model_id = model[0]
         title = model[1]
         description = model[2]
@@ -320,6 +319,83 @@ class DbConnection:
         print('\n'.join(map(str, problem_text)))
         return model_desc
 
+    def get_versions_info(self, version_list):
+        qry = f"""select * from model_of_block mob join version vr on mob.version_fk=vr.id 
+        where vr.id=ANY(ARRAY[{version_list}]);"""
+        problem_text = ""
+        with self.connection.cursor() as cursor:
+            cursor.execute(qry)
+            try:
+                versions = cursor.fetchall()
+            except:
+                problem_text += "Такой модели в базе нет"
+                return []
+        versions_list = []
+
+        for vers in versions:
+            model_id = vers[0]
+            title = vers[1]
+            description = vers[2]
+            input_flows = vers[4]
+            output_flows = vers[5]
+            default_params = vers[6]
+            extra_params = vers[7]
+            expressions = vers[8]
+            version_id = vers[11]
+            UserID = vers[14]
+            model_original = vers[15]
+            vers_num = vers[16]
+            note = vers[20]
+
+            critical_flag = False
+
+            input_flows_list, problem_flow, flag_flow = func_sql_show.show_flows \
+                (model_id, "input", input_flows, self.connection)
+            problem_text += problem_flow
+            critical_flag += flag_flow
+            output_flows_list, problem_flow, flag_flow = func_sql_show.show_flows \
+                (model_id, "output", output_flows, self.connection)
+            problem_text += problem_flow
+            critical_flag += flag_flow
+
+            if extra_params != []:
+                extra_params_list, problem_params, flag_params = func_sql_show.show_extra_default_params \
+                    (model_id, "extra", extra_params, self.connection)
+            else:
+                extra_params_list = []
+                problem_params = ("в модели %s нет дополнительных параметров" % (model_id))
+                flag_params = 0
+            problem_text += problem_params
+            critical_flag += flag_params
+
+            if default_params != []:
+                default_params_list, problem_params, flag_params = func_sql_show.show_extra_default_params \
+                    (model_id, "default", default_params, self.connection)
+            else:
+                default_params_list = []
+                problem_params = ("в модели %s нет параметров по умолчанию" % (model_id))
+                flag_params = 0
+
+            problem_text += problem_params
+            critical_flag += flag_params
+
+            expressions_list = func_sql_show.show_expressions \
+                (model_id, expressions, self.connection)
+            # problem_text += problem_expressions
+            # critical_flag += flag_expression
+
+            if (critical_flag > 0) or ((len(input_flows_list) < 1) and (len(output_flows_list) < 1)):
+                problem_text += ("\nМодель номер %d не будет отображена\n" % model_id)
+            else:
+                model_desc = {'MoB_Id': model_id, 'VersionId': version_id, 'Title': title, 'Description': description,
+                              'InputFlows': input_flows_list, 'OutputFlows': output_flows_list,
+                              'DefaultParameters': default_params_list, 'CustomParameters': extra_params_list,
+                              'Expressions': expressions_list, 'UserID': UserID, 'ModelId': model_original,
+                              'VersNum': vers_num, 'Note': note}
+            versions_list.append(model_desc)
+            print('\n'.join(map(str, problem_text)))
+        return versions_list
+    
     def get_info_model(self):
         '''Функция для создания аналога в графовой БД. Возвращает инфо об одной модели'''
         qry = f"""select * from model_of_block limit 1;"""
@@ -398,6 +474,10 @@ class DbConnection:
     def get_info_instance(self, model_id):
         instance_info = func_sql_show.info_instance(model_id, self.connection)
         return instance_info
+
+    # def get_versions_info(self, version_list):
+    #     versions_info = func_sql_show.versions_info(version_list, self.connection)
+    #     return versions_info
 
     def generate_info_instance(self, model_id, vers_num):
         instance_info = func_sql_show.generate_info_instance(model_id, self.connection, vers_num)
