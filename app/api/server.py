@@ -26,10 +26,10 @@ class Server:
         self.app.add_url_rule('/', view_func=self.get_home)
 
         # создание модели
-        self.app.add_url_rule('/create_model', view_func=self.add_model_info, methods=['POST'])
+        self.app.add_url_rule('/create_model/<int:user_id>', view_func=self.add_model_info, methods=['POST'])
 
         # создание версии модели
-        self.app.add_url_rule('/create_version_model', view_func=self.add_version_model, methods=['POST'])
+        self.app.add_url_rule('/create_version_model/<int:user_id>', view_func=self.add_version_model, methods=['POST'])
 
         # создание схемы
         self.app.add_url_rule('/create_schema', view_func=self.add_schema_info, methods=['POST'])
@@ -170,12 +170,12 @@ class Server:
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
 
-    def add_model_info(self):
+    def add_model_info(self, user_id):
 
         model_info = dict(request.json)
         js = json.dumps(model_info, ensure_ascii=False)
         model_id = self.db_connect.create_model(
-            user_id=model_info['UserId'],
+            user_id=user_id,
             model_description=model_info['Description'],
             model_title=model_info['Title'],
             in_flows=model_info['InputFlows'],
@@ -191,12 +191,12 @@ class Server:
         else:
             return f'Success added {model_id}', 201
 
-    def add_version_model(self):
+    def add_version_model(self, user_id):
         model_info = dict(request.json)
         model_id = model_info['ModelId']
         model_pk, version_id = self.db_connect.create_version(
             model_id=model_id,
-            user_id=model_info['UserId'],
+            user_id=user_id,
             note=model_info['Note'],
             model_description=model_info['Description'],
             model_title=model_info['Title'],

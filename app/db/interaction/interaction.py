@@ -395,7 +395,7 @@ class DbConnection:
             versions_list.append(model_desc)
             print('\n'.join(map(str, problem_text)))
         return versions_list
-    
+
     def get_info_model(self):
         '''Функция для создания аналога в графовой БД. Возвращает инфо об одной модели'''
         qry = f"""select * from model_of_block limit 1;"""
