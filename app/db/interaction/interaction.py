@@ -246,16 +246,17 @@ class DbConnection:
         print('\n'.join(map(str, problem_list)))
         return description_list, description_dict
 
-    def get_model(self, model_pk):
-        qry = f"""select * from model_of_block where id={model_pk};"""
+    def get_model(self, version_id):
+        problem_text = ""
+        qry = f"""select * from model_of_block mob join version vr on mob.version_fk=vr.id where vr.id={version_id};"""
         with self.connection.cursor() as cursor:
             cursor.execute(qry)
-            model = cursor.fetchall()[0]
-        problem_text = ""
+            try:
+                model = cursor.fetchall()[0]
+            except:
+                problem_text += "Такой модели в базе нет"
+                return []
 
-        if len(model) == 0:
-            problem_text += "Такой модели в базе нет"
-            return []
 
         model_id = model[0]
         title = model[1]
@@ -265,6 +266,10 @@ class DbConnection:
         default_params = model[6]
         extra_params = model[7]
         expressions = model[8]
+        UserID = model[14]
+        model_original = model[15]
+        vers_num = model[16]
+        note = model[20]
 
         critical_flag = False
 
@@ -306,10 +311,11 @@ class DbConnection:
         if (critical_flag > 0) or ((len(input_flows_list) < 1) and (len(output_flows_list) < 1)):
             problem_text += ("\nМодель номер %d не будет отображена\n" % model_id)
         else:
-            model_desc = {'ModelId': model_id, 'Title': title, 'Description': description,
+            model_desc = {'MoB_Id': model_id, 'VersionId': version_id ,'Title': title, 'Description': description,
                           'InputFlows': input_flows_list, 'OutputFlows': output_flows_list,
                           'DefaultParameters': default_params_list, 'CustomParameters': extra_params_list,
-                          'Expressions': expressions_list}
+                          'Expressions': expressions_list, 'UserID': UserID, 'ModelId': model_original,
+                          'VersNum': vers_num, 'Note': note}
 
         print('\n'.join(map(str, problem_text)))
         return model_desc
