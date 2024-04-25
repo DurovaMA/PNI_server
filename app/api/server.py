@@ -34,15 +34,11 @@ class Server:
         # создание схемы
         self.app.add_url_rule('/create_schema', view_func=self.add_schema_info, methods=['POST'])
 
-
-        # инфо об экземпляре
-        self.app.add_url_rule('/get_instance', view_func=self.get_instance_info, methods=['POST'])
-
-        # инфо о массиве версий
-        self.app.add_url_rule('/get_versions', view_func=self.get_versions_info, methods=['POST'])
+        # ПЕРЕПИСАТЬ инфо об экземпляре
+        #self.app.add_url_rule('/get_instance', view_func=self.get_instance_info, methods=['POST'])
 
         # отображение всех моделей
-        self.app.add_url_rule('/get_models', view_func=self.get_models_info)
+        #self.app.add_url_rule('/get_models', view_func=self.get_models_info)
 
         # каталог (с версиями)
         self.app.add_url_rule('/get_version_catalog', view_func=self.get_catalog_version_info)
@@ -50,8 +46,11 @@ class Server:
         # отображение информации по созданию модели по номеру
         self.app.add_url_rule('/get_creating_info/<int:model_id>', view_func=self.get_creating_info)
 
-        # отображение модели по номеру
-        self.app.add_url_rule('/get_model/<int:model_pk>', view_func=self.get_model)
+        # отображение версии модели по номеру
+        self.app.add_url_rule('/get_version/<int:version_id>', view_func=self.get_version_info)
+
+        # инфо о массиве версий
+        self.app.add_url_rule('/get_versions', view_func=self.get_versions_info, methods=['POST'])
 
         # отобразить все схемы
         self.app.add_url_rule('/show_all_schemas', view_func=self.show_all_schemas_info)
@@ -87,31 +86,25 @@ class Server:
     def get_home(self):
         return 'Hello, api server!'
 
-    def get_models_info(self):
-        '''Возвращает json со всеми моделями'''
-        try:
-            models_info = self.db_connect.get_models_info()[0]
-            return models_info, 200
-        except ModelProblems as m_problem:
-            abort(404, description=m_problem)
-    def get_model(self, model_pk):
-        '''Возвращает json с моделью по ее номеру'''
-        try:
-            models_info = self.db_connect.get_model(model_pk)
-            return models_info, 200
-        except ModelProblems as m_problem:
-            abort(404, description=m_problem)
+    #
+    # def get_models_info(self):
+    #     '''Возвращает json со всеми моделями'''
+    #     try:
+    #         models_info = self.db_connect.get_models_info()[0]
+    #         return models_info, 200
+    #     except ModelProblems as m_problem:
+    #         abort(404, description=m_problem)
 
-    def get_model_catalog_info(self):
-        '''Возвращает json со всеми моделями плюс каталогами'''
+    def get_version_info(self, version_id):
+        """Возвращает json с информацией о версии модели по ее номеру"""
         try:
-            models_info = self.db_connect.get_model_catalog_info()
-            return models_info, 200
+            version_info = self.db_connect.get_version(version_id)
+            return version_info, 200
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
 
     def get_creating_info(self, model_id):
-        '''Возвращает json информацией о создании модели'''
+        """Возвращает json информацией о создании модели"""
         try:
             creating_info = self.db_connect.get_creating_info(model_id)
             res = json.dumps(creating_info, ensure_ascii=False)
@@ -126,33 +119,12 @@ class Server:
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
 
-
-    def get_info_model(self, name_model):
-        '''Функция для создания аналога в графовой БД. Возвращает инфо об одной модели'''
-        try:
-            path = os.path.join(os.getcwd(), f'/app/db/scripts/{name_model}.json');
-            print("Путь до каталогов", path)
-            models_info = open(f'path', 'r', encoding="utf-8")
-            res = models_info.read()
-            return res, 200
-        except ModelProblems as m_problem:
-            abort(400, description=m_problem)
-
     def get_envs_info(self):
         try:
             envs_info = self.db_connect.get_envs_info()
             return envs_info, 200
         except ParametrNotFoundException:
             abort(404, description=' envs not found')
-
-    def get_instance_info(self):
-        model = dict(request.json)
-        model_id = model['model']
-        try:
-            instance_info = self.db_connect.get_info_instance(model_id)
-            return instance_info, 200
-        except ModelProblems as m_problem:
-            abort(404, description=m_problem)
 
     def get_versions_info(self):
         array_ids = dict(request.json)
@@ -162,14 +134,14 @@ class Server:
             return versions_info, 200
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
-
+    #
     def generate_instance_info(self, id_model, vers_num):
         try:
             instance_info = self.db_connect.generate_info_instance(id_model, vers_num)
             return instance_info, 200
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
-
+    #
     def add_model_info(self, user_id):
 
         model_info = dict(request.json)
@@ -190,7 +162,7 @@ class Server:
             return f'Модель не может быть добавлена', 400
         else:
             return f'Success added {model_id}', 201
-
+    #
     def add_version_model(self, user_id):
         model_info = dict(request.json)
         model_id = model_info['ModelId']
@@ -210,7 +182,7 @@ class Server:
             return f'Версия модели не может быть добавлена', 400
         else:
             return f'Success added version {version_id} for model {model_id} (record {model_pk})', 201
-
+    #
     def add_schema_info(self):
         schema_info = dict(request.json)
         schema_id = self.db_connect.create_schema(
@@ -228,7 +200,7 @@ class Server:
             return all_schemas, 200
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
-
+    #
     def show_schema_info(self, id_schema):
         try:
             schema = self.db_connect.show_schema(
@@ -237,8 +209,7 @@ class Server:
             return schema, 200
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
-
-
+    #
 
 
 if __name__ == '__main__':

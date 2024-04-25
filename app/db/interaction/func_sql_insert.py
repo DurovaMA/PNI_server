@@ -1,4 +1,4 @@
-def create_new_model(user_id, tit, description, full_json, directory,  con):
+def create_new_model(user_id, tit, description, full_json, directory, con):
     """Создает записи о новой модели. Принимает название, описание и
     соединение с БД возвращает идентификатор добавленной модели"""
     qry_model = f"""INSERT    INTO    public.model_of_block    (title, description, status, status_block)    
@@ -23,18 +23,19 @@ def create_new_model(user_id, tit, description, full_json, directory,  con):
         return -1
     return model_id
 
-def create_new_version(user_id, model_id, note, tit, description, con, version_id=None):
-    """Создает запись о новой версии модели. Принимает номер модели, название, описание и
-    соединение с БД возвращает идентификатор добавленной модели"""
-    qry_last_version = f"""SELECT  max(vers_num) FROM version where model_fk ={model_id};"""
 
+def create_new_version(user_id, model_id, note, con):
+    """Создает запись о новой версии модели. Принимает номер модели, пользователя, комментарий и соединение с БД;
+    возвращает идентификатор добавленной модели"""
+    qry_last_version = f"""SELECT  max(vers_num) FROM version where model_fk ={model_id};"""
 
     with con.cursor() as cursor:
         cursor.execute(qry_last_version)
         last_version = cursor.fetchall()[0][0]
 
-        qry_version = f"""INSERT INTO public."version" ( user_fk, model_fk, table_type, stamptime, note, vers_num) 
-                VALUES({user_id}, {model_id}, 'Model', NOW(), '{note}', {last_version + 1}) RETURNING    id; """
+        qry_version = f"""INSERT INTO public."version" ( user_fk, model_fk, table_type, stamptime, note, vers_num)
+        (SELECT  {user_id}, {model_id}, 'Model', NOW(), '{note}', version.vers_num  FROM version 
+        where model_fk ={model_id} order by version.vers_num desc limit 1) RETURNING    id; """
         cursor.execute(qry_version)
         version_id = cursor.fetchall()[0][0]
 
@@ -43,6 +44,7 @@ def create_new_version(user_id, model_id, note, tit, description, con, version_i
         cursor.execute(qry_model)
         model_pk = cursor.fetchall()[0][0]
     return model_pk, version_id
+
 
 def cursor_add_extra_def_param(model, gop_id, p_type, tit, sym, un, type_incl, con):
     par_m_id_list = []
@@ -68,7 +70,7 @@ def cursor_add_extra_def_param(model, gop_id, p_type, tit, sym, un, type_incl, c
         result = cursor.fetchall()
         par_m_id = result[0][0]
 
-        #par_m_id_list.append(par_m_id)
+        # par_m_id_list.append(par_m_id)
 
         ins_all_inclusions_qry = f"""insert into public.all_inclusions (param_group_fk, param_of_model_fk, type_inclusion)
         VALUES({pog_id}, {par_m_id}, '{type_incl}')	RETURNING *; """
@@ -104,7 +106,8 @@ def add_extra_def_params(group_type, param_type, model, param_list, con):
         except Exception:
             print("Ошибка в ключах особых параметров")
             return gop_id, -1
-        par_m_id_list.append(cursor_add_extra_def_param(model, gop_id, param_type, title, symbol, units, type_inclusion, con))
+        par_m_id_list.append(
+            cursor_add_extra_def_param(model, gop_id, param_type, title, symbol, units, type_inclusion, con))
 
     return gop_id, par_m_id_list
 
@@ -288,7 +291,6 @@ def add_calc(mod_id, calc_list, con):
     return id_list
 
 
-
 def create_schema(name, con):
     qry = f"""insert into schema (schema_name) values ('{name}') returning id;"""
     with con.cursor() as cursor:
@@ -307,9 +309,10 @@ def create_topography(x, y, con):
     return topog_id
 
 
-def create_instance(model, schema, topography, con):
+def create_instance(version_id, schema, topography, con):
     qry = f"""insert into instnc (model_fk, position_fk, schema_fk, instance_type) 
-        values ({model}, {topography}, {schema}, 'block') returning id;"""
+       (select mob.id, {topography},  {schema}, 'block'  from model_of_block mob join 
+       version vr on mob.version_fk=vr.id where vr.id={version_id}) returning id;"""
     with con.cursor() as cursor:
         cursor.execute(qry)
         result_sql = cursor.fetchall()
