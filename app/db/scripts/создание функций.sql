@@ -86,56 +86,28 @@ $function$
 COMMENT ON FUNCTION public.return_avail_env(int4) IS
 'Возвращает таблицу доступных параметров для среды по ее номеру';
 
-----Представление для вывода по каталогу всех моделей
-create view models_catalog as
-WITH RECURSIVE r AS (
 
-	SELECT mob.id model_id,mob.title ,child.id, child.parent_level_fk , child.dir_name ,  1 AS level
-   FROM directory parent
-   right join directory child on parent.id=child.parent_level_fk
-   join directory_model dm on dm.directory_fk=child.id
-   right join model_of_block mob on mob.id=dm.model_fk
-   WHERE child.parent_level_fk is Null
+CREATE EXTENSION pgcrypto;
 
-   union
-
-   SELECT mob.id model_id, mob.title ,child.id, child.parent_level_fk , child.dir_name ,   r.level + 1 AS level
-   FROM directory parent
-   right join directory child on parent.id=child.parent_level_fk
-   join directory_model dm on dm.directory_fk=child.id
-   right join model_of_block mob on mob.id=dm.model_fk
-       JOIN r
-          ON child.parent_level_fk = r.id
-)
-SELECT * FROM r;
-
-select model_id, title from models_catalog where id = 6;
---drop view param_of_flow;
+CREATE OR REPLACE FUNCTION hash_update_tg() RETURNS trigger AS $$
+declare
+v text;
+BEGIN
+    IF tg_op = 'INSERT' OR tg_op = 'UPDATE' then
+    	v = NEW.x::text || NEW.y::text || NEW.color::text;
+        NEW.hash_sum = digest(v, 'sha256');
+       	IF NEW.hash_sum=OLD.hash_sum then
+       		RAISE NOTICE 'Хэш-сумма не изменилась, перезаписи не требуется';
+       	ELSE
+       		RAISE NOTICE 'Хэш-сумма изменилась, создана новая версия записи';
+       		RETURN NEW;
+       	END IF;
 
 
-----Представление для вывода вложенности всех каталогов
-create view view_catalog as
-  WITH RECURSIVE r AS (
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
 
-	select parent.id id_parent, parent.dir_name parent_name,  child.dir_name child_name, child.id id_child , 1 AS level
-	from directory parent
-	right join directory child on parent.id =child.parent_level_fk
-   WHERE child.parent_level_fk is null
-
-   union
-
-   	select parent.id id_parent, parent.dir_name parent_name,  child.dir_name child_name, child.id id_child ,  r.level + 1 AS level
-   	from directory parent
-	right join directory child on parent.id =child.parent_level_fk
-       JOIN r
-          ON child.parent_level_fk = r.id_child
-)
-
-SELECT * FROM r;
-
-select  id_parent,parent_name,  child_name, id_child, level from view_catalog order by (level, id_parent) desc;
-select id_child, id_parent from view_catalog order by level desc;
-select max(level) from view_catalog;
---drop view view_catalog;
-
-
+CREATE TRIGGER position_hash_update
+BEFORE INSERT OR UPDATE ON position
+FOR EACH ROW EXECUTE PROCEDURE hash_update_tg();

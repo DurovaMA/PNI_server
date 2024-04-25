@@ -14,7 +14,12 @@ DROP TABLE public.schema_flows  CASCADE;
 DROP TABLE public.position  CASCADE;
 DROP TABLE public.directory  CASCADE;
 DROP TABLE public.directory_model  CASCADE;
-DROP TABLE public.param_of_instnc;
+DROP TABLE public.param_of_instnc CASCADE;
+DROP TABLE public.directory_model CASCADE;
+DROP TABLE public.templat CASCADE;
+DROP TABLE public.param_of_templat CASCADE;
+DROP TABLE public.user CASCADE;
+DROP TABLE public.version CASCADE;
 
 DROP TYPE public."types_group";
 DROP TYPE public."types_flow";
@@ -58,18 +63,27 @@ CREATE TYPE public."types_expression" AS ENUM (
 	'Expression',
 	'PropSI');
 
+CREATE TYPE public."types_table" AS ENUM (
+	'Schema',
+	'Model');
+
+CREATE TYPE public."types_block" AS ENUM (
+	'Free',
+	'Blocked');
+
 CREATE TABLE public.model_of_block (
-    id serial NOT NULL,
-    title character varying not NULL,
-    description character varying NULL,
-    status public."types_status" NULL DEFAULT 'Developing'::types_status,
-    input_flows _int4 NULL,
-    output_flows _int4 NULL,
-    default_params _int4 NULL,
-    extra_params _int4 NULL,
-    expressions _int4 NULL,
-    CONSTRAINT model_of_block_pk PRIMARY KEY (id)
-);
+	id serial4 NOT NULL,
+	title varchar NOT NULL,
+	description varchar NULL,
+	status public.types_status NULL DEFAULT 'Developing'::types_status,
+	input_flows _int4 NULL,
+	output_flows _int4 NULL,
+	default_params _int4 NULL,
+	extra_params _int4 NULL,
+	expressions _int4 NULL,
+	model_id int4  NULL,
+	status_block public."types_block" NOT NULL,
+	CONSTRAINT model_of_block_pk PRIMARY KEY (id));
 COMMENT ON TABLE public.model_of_block IS 'Модель блока';
 
 CREATE TABLE public.parametr (
@@ -181,19 +195,21 @@ CREATE TABLE public.calculation (
 COMMENT ON TABLE public.calculation IS 'Расчетное выражение';
 
 -- DROP TABLE public.position;
-CREATE TABLE public.position (
-    id serial NOT NULL,
-    x real null,
-    y real null,
-    color real null,
-    CONSTRAINT position_pk PRIMARY KEY (id)
-    );
+CREATE TABLE public."position" (
+	id serial4 NOT NULL,
+	x float4 NULL,
+	y float4 NULL,
+	color text NULL,
+	hash_sum bytea NULL,
+	CONSTRAINT position_pk PRIMARY KEY (id)
+);
 COMMENT ON TABLE public.position IS 'Топография экземпляра';
 
 -- DROP TABLE public.schema;
 CREATE TABLE public.schema (
     id serial NOT NULL,
     schema_name varchar null,
+    status_block public."types_block" null,
     CONSTRAINT schema_pk PRIMARY KEY (id)
     );
 COMMENT ON TABLE public.schema IS 'Схема с экземплярами блоков и связями';
@@ -205,6 +221,7 @@ CREATE TABLE public.instnc (
     position_fk int4 NOT NULL,
     schema_fk int4 NOT NULL,
     instance_type public.types_instance NOT null default 'block',
+    hash_sum  bytea  NULL,
     CONSTRAINT instnc_pk PRIMARY KEY (id),
     CONSTRAINT instnc_fk FOREIGN KEY (model_fk)
     	REFERENCES public.model_of_block(id) ON DELETE CASCADE ON UPDATE cascade,
@@ -237,6 +254,7 @@ CREATE TABLE public.schema_flows (
     schema_fk int4 NOT NULL,
     from_flow_fk int4 NOT NULL,
     to_flow_fk int4 NOT NULL,
+    hash_sum  bytea  NULL,
     CONSTRAINT schema_flows_pk PRIMARY KEY (id),
     CONSTRAINT schema_flows_fk FOREIGN KEY (from_instance_fk)
     	REFERENCES public.instnc(id) ON DELETE CASCADE ON UPDATE cascade,
@@ -272,3 +290,60 @@ CREATE TABLE public.directory_model (
 	CONSTRAINT directory_model_fk_1 FOREIGN KEY (directory_fk) REFERENCES public.directory(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 COMMENT ON TABLE public.directory_model IS 'К какому каталогу относится каждая модель';
+
+-- DROP TABLE public.templat;
+CREATE TABLE public.templat (
+    id serial NOT NULL,
+    model_fk int4 NOT NULL,
+    vers int4 NOT NULL,
+    CONSTRAINT templat_pk PRIMARY KEY (id),
+    CONSTRAINT templat_fk FOREIGN KEY (model_fk)
+    	REFERENCES public.model_of_block(id) ON DELETE CASCADE ON UPDATE cascade
+    );
+COMMENT ON TABLE public.templat IS 'Шаблон экземпляра блока';
+
+-- DROP TABLE public.param_of_templat;
+CREATE TABLE public.param_of_templat (
+	id serial4 NOT NULL,
+	templat_fk int4 NOT NULL,
+	pom_fk int4 NOT NULL,
+	param_name varchar NOT NULL,
+	value float4 NULL,
+	CONSTRAINT param_of_templat_pk PRIMARY KEY (id),
+	CONSTRAINT param_of_templat_fk FOREIGN KEY (templat_fk) REFERENCES public.templat(id) ON DELETE CASCADE ON UPDATE CASCADE,
+	CONSTRAINT param_of_templat_fk_1 FOREIGN KEY (pom_fk) REFERENCES public.param_of_model(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+COMMENT ON TABLE public.param_of_templat IS 'Значения параметров шаблона блока';
+
+-- DROP TABLE public.user;
+CREATE TABLE public.user (
+    id serial NOT NULL,
+    username varchar NOT NULL,
+    login varchar NOT NULL,
+    passw varchar NOT NULL,
+    CONSTRAINT user_pk PRIMARY KEY (id)
+    );
+COMMENT ON TABLE public.user IS 'Пользователь';
+
+-- DROP TABLE public.version;
+CREATE TABLE public."version" (
+	id serial4 NOT NULL,
+	schema_fk int4 NULL,
+	user_fk int4 NOT NULL,
+	model_fk int4 NULL,
+	vers_num int4 NOT NULL,
+	table_type public.types_table NOT NULL,
+	stamptime timestamp NULL,
+	objectstr json NULL,
+	note varchar NULL,
+	CONSTRAINT version_pk PRIMARY KEY (id),
+	CONSTRAINT version_fk FOREIGN KEY (schema_fk) REFERENCES public."schema"(id) ON DELETE CASCADE ON UPDATE CASCADE,
+	CONSTRAINT version_fk_1 FOREIGN KEY (user_fk) REFERENCES public."user"(id) ON DELETE CASCADE ON UPDATE CASCADE,
+	CONSTRAINT version_fk_2 FOREIGN KEY (model_fk) REFERENCES public.model_of_block(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+COMMENT ON TABLE public.version IS 'Версия схемы';
+
+ALTER TABLE public.model_of_block ADD version_fk int NULL;
+ALTER TABLE public.model_of_block ADD CONSTRAINT model_of_block_un UNIQUE (model_id,version_fk);
+ALTER TABLE public.model_of_block ADD CONSTRAINT model_of_block_fk FOREIGN KEY (version_fk) REFERENCES public."version"(id) ON DELETE CASCADE ON UPDATE CASCADE;
+

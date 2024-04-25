@@ -33,13 +33,16 @@ INSERT INTO public.param_of_group (param_fk,group_fk) VALUES
 	 (3,2), --Энтальпия, avail_for_env 2
 	 (4,2); --Тепловая мощность, avail_for_env 2
 
-
 INSERT INTO public.directory
-(id, dir_name, parent_level_fk)
-values
-(1,	'Сквозные однопоточные элементы', null),
-(2,'Конденсаторы и котлы', 1),
-(3,	'Генераторы потоков', null);
+	(id, dir_name, parent_level_fk)
+	values
+	(1,	'Сквозные однопоточные элементы', null),
+	(2, 'Конденсаторы и котлы', 1),
+	(3,	'Генераторы потоков', null);
+
+SELECT setval('model_of_block_id_seq', max(id)) FROM model_of_block;
+SELECT setval('version_id_seq', max(id)) FROM version;
+SELECT setval('directory_model_id_seq', max(id)) FROM directory_model;
 
 INSERT INTO public.directory_model
 (id, model_fk, directory_fk)
