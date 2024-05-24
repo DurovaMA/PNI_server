@@ -647,7 +647,8 @@ class DbConnection:
         for ins in all_instances:
             instance_id = ins[0]
             model_id = ins[1]
-            position_id = ins[2]
+            version_id = ins[2]
+            position_id = ins[3]
             qry_position = f"""select * from position where id = {position_id};"""
             with self.connection.cursor() as cursor:
                 cursor.execute(qry_position)
@@ -663,7 +664,7 @@ class DbConnection:
                 var_dict = {"VariableId": var[2], "Value": var[4]}
                 vars_list.append(var_dict)
             instance_dict = {"OffsetLeft": position_left, "OffsetTop": position_top,
-                             "BlockModel": {"ModelId": model_id},
+                             "BlockModel": {"ModelId": model_id, "VersionId": version_id},
                              "BlockInstanceId": instance_id, "DefaultVariables": vars_list}
             instances_list.append(instance_dict)
 

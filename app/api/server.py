@@ -170,8 +170,6 @@ class Server:
             model_id=model_id,
             user_id=user_id,
             note=model_info['Note'],
-            model_description=model_info['Description'],
-            model_title=model_info['Title'],
             in_flows=model_info['InputFlows'],
             out_flows=model_info['OutputFlows'],
             default_params=model_info['DefaultParameters'],

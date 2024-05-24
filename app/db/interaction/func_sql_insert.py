@@ -40,7 +40,8 @@ def create_new_version(user_id, model_id, note, con):
         version_id = cursor.fetchall()[0][0]
 
         qry_model = f"""INSERT INTO public.model_of_block (title, description, status, status_block, model_id, version_fk)
-            VALUES('{tit}', '{description}', 'Developing'::types_status, 'Free', {model_id}, {version_id}) RETURNING  id ;"""
+        (SELECT  title, description, 'Developing'::types_status, 'Free', {model_id}, {version_id} from model_of_block
+        where id ={model_id}  limit 1 )  RETURNING  id ;"""
         cursor.execute(qry_model)
         model_pk = cursor.fetchall()[0][0]
     return model_pk, version_id
@@ -310,8 +311,8 @@ def create_topography(x, y, con):
 
 
 def create_instance(version_id, schema, topography, con):
-    qry = f"""insert into instnc (model_fk, position_fk, schema_fk, instance_type) 
-       (select mob.id, {topography},  {schema}, 'block'  from model_of_block mob join 
+    qry = f"""insert into instnc (model_fk, version_fk, position_fk, schema_fk, instance_type) 
+       (select mob.id, mob.version_fk, {topography},  {schema}, 'block'  from model_of_block mob join 
        version vr on mob.version_fk=vr.id where vr.id={version_id}) returning id;"""
     with con.cursor() as cursor:
         cursor.execute(qry)
