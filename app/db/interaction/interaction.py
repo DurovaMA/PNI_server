@@ -585,9 +585,9 @@ class DbConnection:
             return -1
             raise ModelProblems('Не удалось добавить модель!')
 
-    def create_schema(self, title, instances, interconnections):
+    def create_schema(self, title, instances, interconnections, user_id):
 
-        id_schema = func_sql_insert.create_schema(title, self.connection)
+        id_schema = func_sql_insert.create_schema(title, user_id, self.connection)
 
         instances_dict = {}
         for ins in instances:

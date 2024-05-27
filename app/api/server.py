@@ -32,7 +32,7 @@ class Server:
         self.app.add_url_rule('/create_version_model/<int:user_id>', view_func=self.add_version_model, methods=['POST'])
 
         # создание схемы
-        self.app.add_url_rule('/create_schema', view_func=self.add_schema_info, methods=['POST'])
+        self.app.add_url_rule('/create_schema/<int:user_id>', view_func=self.add_schema_info, methods=['POST'])
 
         # ПЕРЕПИСАТЬ инфо об экземпляре
         #self.app.add_url_rule('/get_instance', view_func=self.get_instance_info, methods=['POST'])
@@ -181,9 +181,10 @@ class Server:
         else:
             return f'Success added version {version_id} for model {model_id} (record {model_pk})', 201
     #
-    def add_schema_info(self):
+    def add_schema_info(self, user_id):
         schema_info = dict(request.json)
         schema_id = self.db_connect.create_schema(
+            user_id=user_id,
             title=schema_info['SchemaName'],
             instances=schema_info['BlockInstances'],
             interconnections=schema_info['BlockInterconnections']
