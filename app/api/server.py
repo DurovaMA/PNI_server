@@ -184,7 +184,7 @@ class Server:
     def add_schema_info(self):
         schema_info = dict(request.json)
         schema_id = self.db_connect.create_schema(
-            title=schema_info['Title'],
+            title=schema_info['SchemaName'],
             instances=schema_info['BlockInstances'],
             interconnections=schema_info['BlockInterconnections']
         )
