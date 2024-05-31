@@ -206,68 +206,15 @@ CREATE TABLE public."position" (
 COMMENT ON TABLE public.position IS 'Топография экземпляра';
 
 -- DROP TABLE public.schema;
-CREATE TABLE public.schema (
-    id serial NOT NULL,
-    schema_name varchar null,
-    status_block public."types_block" null,
-    CONSTRAINT schema_pk PRIMARY KEY (id)
-    );
-COMMENT ON TABLE public.schema IS 'Схема с экземплярами блоков и связями';
-
--- DROP TABLE public.instnc;
-CREATE TABLE public.instnc (
-    id serial NOT NULL,
-    model_fk int4 NOT NULL,
-    position_fk int4 NOT NULL,
-    schema_fk int4 NOT NULL,
-    instance_type public.types_instance NOT null default 'block',
-    hash_sum  bytea  NULL,
-    CONSTRAINT instnc_pk PRIMARY KEY (id),
-    CONSTRAINT instnc_fk FOREIGN KEY (model_fk)
-    	REFERENCES public.model_of_block(id) ON DELETE CASCADE ON UPDATE cascade,
-    CONSTRAINT instnc_fk_1 FOREIGN KEY (position_fk)
-    	REFERENCES public.position(id) ON DELETE CASCADE ON UPDATE cascade,
-    CONSTRAINT instnc_fk_2 FOREIGN KEY (schema_fk)
-    	REFERENCES public.schema(id) ON DELETE CASCADE ON UPDATE cascade
-    );
-COMMENT ON TABLE public.instnc IS 'Экземпляр блока';
-
--- DROP TABLE public.param_of_instnc;
-CREATE TABLE public.param_of_instnc (
+CREATE TABLE public."schema" (
 	id serial4 NOT NULL,
-	instance_fk int4 NOT NULL,
-	pom_fk int4 NOT NULL,
-	param_name varchar NOT NULL,
-	value float4 NULL,
-	CONSTRAINT param_of_instnc_pk PRIMARY KEY (id),
-	CONSTRAINT param_of_instnc_fk FOREIGN KEY (instance_fk) REFERENCES public.instnc(id) ON DELETE CASCADE ON UPDATE CASCADE,
-	CONSTRAINT param_of_instnc_fk_1 FOREIGN KEY (pom_fk) REFERENCES public.param_of_model(id) ON DELETE CASCADE ON UPDATE CASCADE
+	schema_name varchar NULL,
+	status_block public."types_block" NULL,
+	user_fk int4 NULL,
+	CONSTRAINT schema_pk PRIMARY KEY (id),
+	CONSTRAINT schema_fk FOREIGN KEY (user_fk) REFERENCES public."user"(id) ON DELETE SET NULL ON UPDATE SET NULL
 );
-COMMENT ON TABLE public.param_of_instnc IS 'Значения параметров блока или потока';
-
-
--- DROP TABLE public.schema_flows;
-CREATE TABLE public.schema_flows (
-    id serial NOT NULL,
-    from_instance_fk int4 NOT NULL,
-    to_instance_fk int4 NOT NULL,
-    schema_fk int4 NOT NULL,
-    from_flow_fk int4 NOT NULL,
-    to_flow_fk int4 NOT NULL,
-    hash_sum  bytea  NULL,
-    CONSTRAINT schema_flows_pk PRIMARY KEY (id),
-    CONSTRAINT schema_flows_fk FOREIGN KEY (from_instance_fk)
-    	REFERENCES public.instnc(id) ON DELETE CASCADE ON UPDATE cascade,
-    CONSTRAINT schema_flows_fk_1 FOREIGN KEY (to_instance_fk)
-    	REFERENCES public.instnc(id) ON DELETE CASCADE ON UPDATE cascade,
-    CONSTRAINT schema_flows_fk_2 FOREIGN KEY (schema_fk)
-    	REFERENCES public.schema(id) ON DELETE CASCADE ON UPDATE cascade,
-    CONSTRAINT schema_flows_fk_3 FOREIGN KEY (from_flow_fk)
-    	REFERENCES public.flow(id) ON DELETE CASCADE ON UPDATE cascade,
-    CONSTRAINT schema_flows_fk_4 FOREIGN KEY (to_flow_fk)
-    	REFERENCES public.flow(id) ON DELETE CASCADE ON UPDATE cascade
-    );
-COMMENT ON TABLE public.schema_flows IS 'Поток в схеме. Соединяет два экземпляра блока. Для первого указывается один из его выходных потоков, для второго - входной';
+COMMENT ON TABLE public.schema IS 'Схема с экземплярами блоков и связями';
 
 
 -- DROP TABLE public.directory;
@@ -342,6 +289,67 @@ CREATE TABLE public."version" (
 	CONSTRAINT version_fk_2 FOREIGN KEY (model_fk) REFERENCES public.model_of_block(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 COMMENT ON TABLE public.version IS 'Версия схемы';
+
+
+-- DROP TABLE public.instnc;
+CREATE TABLE public.instnc (
+    id serial NOT NULL,
+    model_fk int4 NOT NULL,
+    version_fk int4 NOT NULL,
+    position_fk int4 NOT NULL,
+    schema_fk int4 NOT NULL,
+    instance_type public.types_instance NOT null default 'block',
+    hash_sum  bytea  NULL,
+    CONSTRAINT instnc_pk PRIMARY KEY (id),
+    CONSTRAINT instnc_fk FOREIGN KEY (model_fk)
+    	REFERENCES public.model_of_block(id) ON DELETE CASCADE ON UPDATE cascade,
+    CONSTRAINT instnc_fk_1 FOREIGN KEY (version_fk)
+    	REFERENCES public.version(id) ON DELETE CASCADE ON UPDATE cascade,
+    CONSTRAINT instnc_fk_2 FOREIGN KEY (position_fk)
+    	REFERENCES public.position(id) ON DELETE CASCADE ON UPDATE cascade,
+    CONSTRAINT instnc_fk_3 FOREIGN KEY (schema_fk)
+    	REFERENCES public.schema(id) ON DELETE CASCADE ON UPDATE cascade
+    );
+COMMENT ON TABLE public.instnc IS 'Экземпляр блока';
+
+-- DROP TABLE public.param_of_instnc;
+CREATE TABLE public.param_of_instnc (
+	id serial4 NOT NULL,
+	instance_fk int4 NOT NULL,
+	pom_fk int4 NOT NULL,
+	param_name varchar NOT NULL,
+	value float4 NULL,
+	CONSTRAINT param_of_instnc_pk PRIMARY KEY (id),
+	CONSTRAINT param_of_instnc_fk FOREIGN KEY (instance_fk) REFERENCES public.instnc(id) ON DELETE CASCADE ON UPDATE CASCADE,
+	CONSTRAINT param_of_instnc_fk_1 FOREIGN KEY (pom_fk) REFERENCES public.param_of_model(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+COMMENT ON TABLE public.param_of_instnc IS 'Значения параметров блока или потока';
+
+
+-- DROP TABLE public.schema_flows;
+CREATE TABLE public.schema_flows (
+    id serial NOT NULL,
+    from_instance_fk int4 NOT NULL,
+    to_instance_fk int4 NOT NULL,
+    schema_fk int4 NOT NULL,
+    from_flow_fk int4 NOT NULL,
+    to_flow_fk int4 NOT NULL,
+    hash_sum  bytea  NULL,
+    CONSTRAINT schema_flows_pk PRIMARY KEY (id),
+    CONSTRAINT schema_flows_fk FOREIGN KEY (from_instance_fk)
+    	REFERENCES public.instnc(id) ON DELETE CASCADE ON UPDATE cascade,
+    CONSTRAINT schema_flows_fk_1 FOREIGN KEY (to_instance_fk)
+    	REFERENCES public.instnc(id) ON DELETE CASCADE ON UPDATE cascade,
+    CONSTRAINT schema_flows_fk_2 FOREIGN KEY (schema_fk)
+    	REFERENCES public.schema(id) ON DELETE CASCADE ON UPDATE cascade,
+    CONSTRAINT schema_flows_fk_3 FOREIGN KEY (from_flow_fk)
+    	REFERENCES public.flow(id) ON DELETE CASCADE ON UPDATE cascade,
+    CONSTRAINT schema_flows_fk_4 FOREIGN KEY (to_flow_fk)
+    	REFERENCES public.flow(id) ON DELETE CASCADE ON UPDATE cascade
+    );
+COMMENT ON TABLE public.schema_flows IS 'Поток в схеме. Соединяет два экземпляра блока. Для первого указывается один из его выходных потоков, для второго - входной';
+
+
 
 ALTER TABLE public.model_of_block ADD version_fk int NULL;
 ALTER TABLE public.model_of_block ADD CONSTRAINT model_of_block_un UNIQUE (model_id,version_fk);

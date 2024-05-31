@@ -43,12 +43,20 @@ INSERT INTO public.directory
 SELECT setval('model_of_block_id_seq', max(id)) FROM model_of_block;
 SELECT setval('version_id_seq', max(id)) FROM version;
 SELECT setval('directory_model_id_seq', max(id)) FROM directory_model;
+SELECT setval('version_id_seq', max(id)) FROM version;
 
-INSERT INTO public.directory_model
+
+INSERT INTO public."user"
+(id, username, login, passw)
+VALUES(nextval('user_id_seq'::regclass), 'первый пользователь', 'login', 'passw');
+
+
+'''INSERT INTO public.directory_model
 (id, model_fk, directory_fk)
 values
 (1, 1, 1),
 (2, 2, 1),
 (3, 4, 2),
 (4, 3, 2),
-(5, 5, 3);
+(5, 5, 3);'''
+

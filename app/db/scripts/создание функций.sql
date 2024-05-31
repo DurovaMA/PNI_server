@@ -85,29 +85,3 @@ $function$
 ;
 COMMENT ON FUNCTION public.return_avail_env(int4) IS
 'Возвращает таблицу доступных параметров для среды по ее номеру';
-
-
-CREATE EXTENSION pgcrypto;
-
-CREATE OR REPLACE FUNCTION hash_update_tg() RETURNS trigger AS $$
-declare
-v text;
-BEGIN
-    IF tg_op = 'INSERT' OR tg_op = 'UPDATE' then
-    	v = NEW.x::text || NEW.y::text || NEW.color::text;
-        NEW.hash_sum = digest(v, 'sha256');
-       	IF NEW.hash_sum=OLD.hash_sum then
-       		RAISE NOTICE 'Хэш-сумма не изменилась, перезаписи не требуется';
-       	ELSE
-       		RAISE NOTICE 'Хэш-сумма изменилась, создана новая версия записи';
-       		RETURN NEW;
-       	END IF;
-
-
-    END IF;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER position_hash_update
-BEFORE INSERT OR UPDATE ON position
-FOR EACH ROW EXECUTE PROCEDURE hash_update_tg();
