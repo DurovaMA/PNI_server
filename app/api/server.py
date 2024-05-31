@@ -35,9 +35,9 @@ class Server:
         self.app.add_url_rule('/create_schema/<int:user_id>', view_func=self.add_schema_info, methods=['POST'])
 
         # блокировка схемы
-        self.app.add_url_rule('/block_schema/<int:user_id>/<int:schema_id>', view_func=self.block_schema,
-                              methods=['POST'])
+        self.app.add_url_rule('/block_schema/<int:user_id>/<int:schema_id>', view_func=self.block_schema)
 
+        self.app.add_url_rule('/unblock_schema/<int:user_id>/<int:schema_id>', view_func=self.unblock_schema)
         # ПЕРЕПИСАТЬ инфо об экземпляре
         # self.app.add_url_rule('/get_instance', view_func=self.get_instance_info, methods=['POST'])
 
@@ -207,10 +207,18 @@ class Server:
             schema_id=schema_id
         )
         if schema_id == -1:
-            return f'Схема не может быть заблокирована', 400
+            return f'Схема не существует', 400
         else:
             return f'Успешно заблокирована схема {schema_id}', 201
-
+    def unblock_schema(self, user_id, schema_id):
+        schema_id = self.db_connect.unblock_schema(
+            user_id=user_id,
+            schema_id=schema_id
+        )
+        if schema_id == -1:
+            return f'Схема не существует', 400
+        else:
+            return f'Успешно разблокирована схема {schema_id}', 201
     def show_all_schemas_info(self):
         try:
             all_schemas = self.db_connect.show_all_schemas()
