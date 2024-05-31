@@ -617,7 +617,18 @@ class DbConnection:
 
         return id_schema
 
-    #
+    def block_schema(self, user_id, schema_id):
+        qry = f"""update schema set user_blocker_fk={user_id}, status_block='Blocked'  
+                where id = {schema_id} returning id;"""
+        try:
+            with self.connection.cursor() as cursor:
+                cursor.execute(qry)
+                result_sql = cursor.fetchall()[0][0]
+        except:
+            return -1
+        schema_id = result_sql
+        return schema_id
+
     def show_all_schemas(self):
         qry_all_schemas = f"""select id, schema_name from schema;"""
         with self.connection.cursor() as cursor:

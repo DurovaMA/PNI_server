@@ -293,7 +293,7 @@ def add_calc(mod_id, calc_list, con):
 
 
 def create_schema(name, user_id, con):
-    qry = f"""insert into schema (schema_name, user_fk) values ('{name}', {user_id}) returning id;"""
+    qry = f"""insert into schema (schema_name, user_creator_fk) values ('{name}', {user_id}) returning id;"""
     with con.cursor() as cursor:
         cursor.execute(qry)
         result_sql = cursor.fetchall()

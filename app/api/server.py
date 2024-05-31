@@ -34,11 +34,15 @@ class Server:
         # создание схемы
         self.app.add_url_rule('/create_schema/<int:user_id>', view_func=self.add_schema_info, methods=['POST'])
 
+        # блокировка схемы
+        self.app.add_url_rule('/block_schema/<int:user_id>/<int:schema_id>', view_func=self.block_schema,
+                              methods=['POST'])
+
         # ПЕРЕПИСАТЬ инфо об экземпляре
-        #self.app.add_url_rule('/get_instance', view_func=self.get_instance_info, methods=['POST'])
+        # self.app.add_url_rule('/get_instance', view_func=self.get_instance_info, methods=['POST'])
 
         # отображение всех моделей
-        #self.app.add_url_rule('/get_models', view_func=self.get_models_info)
+        # self.app.add_url_rule('/get_models', view_func=self.get_models_info)
 
         # каталог (с версиями)
         self.app.add_url_rule('/get_version_catalog', view_func=self.get_catalog_version_info)
@@ -64,11 +68,9 @@ class Server:
         # отображение сред
         self.app.add_url_rule('/get_envs', view_func=self.get_envs_info)
 
-
         self.app.add_url_rule('/test_zapros', view_func=self.test, methods=['POST'])
 
         self.app.register_error_handler(404, self.page_not_found)
-
 
     def test(self):
         request_body = dict(request.json)
@@ -111,6 +113,7 @@ class Server:
             return res, 200
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
+
     def get_catalog_version_info(self):
         '''Возвращает json со всеми моделями плюс каталогами плюс версии'''
         try:
@@ -134,6 +137,7 @@ class Server:
             return versions_info, 200
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
+
     #
     def generate_instance_info(self, id_model, vers_num):
         try:
@@ -141,6 +145,7 @@ class Server:
             return instance_info, 200
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
+
     #
     def add_model_info(self, user_id):
 
@@ -162,6 +167,7 @@ class Server:
             return f'Модель не может быть добавлена', 400
         else:
             return f'Success added {model_id}', 201
+
     #
     def add_version_model(self, user_id):
         model_info = dict(request.json)
@@ -180,6 +186,7 @@ class Server:
             return f'Версия модели не может быть добавлена', 400
         else:
             return f'Success added version {version_id} for model {model_id} (record {model_pk})', 201
+
     #
     def add_schema_info(self, user_id):
         schema_info = dict(request.json)
@@ -193,12 +200,24 @@ class Server:
             return f'Схема не может быть добавлена', 400
         else:
             return f'Success added {schema_id}', 201
+
+    def block_schema(self, user_id, schema_id):
+        schema_id = self.db_connect.block_schema(
+            user_id=user_id,
+            schema_id=schema_id
+        )
+        if schema_id == -1:
+            return f'Схема не может быть заблокирована', 400
+        else:
+            return f'Успешно заблокирована схема {schema_id}', 201
+
     def show_all_schemas_info(self):
         try:
-            all_schemas = self.db_connect.show_all_schemas( )
+            all_schemas = self.db_connect.show_all_schemas()
             return all_schemas, 200
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
+
     #
     def show_schema_info(self, id_schema):
         try:
@@ -222,10 +241,10 @@ if __name__ == '__main__':
     server_host = config['SERVER_HOST']
     server_port = config['SERVER_PORT']
 
-    db_host = os.environ.get('DB_HOST',config['DB_HOST'])
-    print("DB_host",db_host)
-    db_port = os.environ.get('DB_PORT',config['DB_PORT'])
-    print("DB_port",db_port)
+    db_host = os.environ.get('DB_HOST', config['DB_HOST'])
+    print("DB_host", db_host)
+    db_port = os.environ.get('DB_PORT', config['DB_PORT'])
+    print("DB_port", db_port)
     db_user = config['DB_USER']
     db_password = config['DB_PASSWORD']
     db_name = config['DB_NAME']
