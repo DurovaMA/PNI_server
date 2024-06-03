@@ -207,7 +207,7 @@ class Server:
             schema_id=schema_id
         )
         if schema_id == -1:
-            return f'Схема не существует', 400
+            return f'Схема не существует или была заблокирована другим пользователем', 400
         else:
             return f'Успешно заблокирована схема {schema_id}', 201
     def unblock_schema(self, user_id, schema_id):
@@ -216,7 +216,7 @@ class Server:
             schema_id=schema_id
         )
         if schema_id == -1:
-            return f'Схема не существует', 400
+            return f'Схема не существует или была заблокирована другим пользователем', 400
         else:
             return f'Успешно разблокирована схема {schema_id}', 201
     def show_all_schemas_info(self):

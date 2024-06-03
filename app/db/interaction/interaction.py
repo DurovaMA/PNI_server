@@ -59,11 +59,12 @@ class DbConnection:
             env_id = result[5]
             if env_id != e_id:  # если новая среда
                 p_of_e = []
-                env_list.append({'FlowEnvironmentId': env_id, 'FlowEnvironmentType': env_type, 'BaseParameters': p_of_e})
+                env_list.append(
+                    {'FlowEnvironmentId': env_id, 'FlowEnvironmentType': env_type, 'BaseParameters': p_of_e})
                 e_id = env_id
             if p_id not in param_list:
                 base_param_list.append({'ParameterId': p_id, 'Title': p_title,
-                                    'Symbol': p_symbol, 'Units': p_units})
+                                        'Symbol': p_symbol, 'Units': p_units})
                 param_list.append(p_id)
             p_of_e.append(p_id)
 
@@ -619,7 +620,7 @@ class DbConnection:
 
     def block_schema(self, user_id, schema_id):
         qry = f"""update schema set user_blocker_fk={user_id}, status_block='Blocked'  
-                where id = {schema_id} returning id;"""
+                where id = {schema_id}  and status_block='Free' returning id;"""
         try:
             with self.connection.cursor() as cursor:
                 cursor.execute(qry)
@@ -630,8 +631,8 @@ class DbConnection:
         return schema_id
 
     def unblock_schema(self, user_id, schema_id):
-        qry = f"""update schema set user_blocker_fk={user_id}, status_block='Free'  
-                where id = {schema_id} returning id;"""
+        qry = f"""update schema set user_blocker_fk={'Null'}, status_block='Free'  
+                where id = {schema_id} and user_blocker_fk={user_id} returning id;"""
         try:
             with self.connection.cursor() as cursor:
                 cursor.execute(qry)
@@ -651,6 +652,9 @@ class DbConnection:
             schemas_dict = {}
             schemas_dict["SchemaId"] = sch[0]
             schemas_dict["SchemaName"] = sch[1]
+            schemas_dict["SchemaStatus"] = sch[2]
+            schemas_dict["SchemaCreator"] = sch[3]
+            schemas_dict["SchemaBlocker"] = sch[4]
             schemas_list.append(schemas_dict)
         return schemas_list
 
@@ -659,7 +663,26 @@ class DbConnection:
         qry_schema = f"""select * from schema where id = {schema_id};"""
         with self.connection.cursor() as cursor:
             cursor.execute(qry_schema)
-            schema_name = cursor.fetchall()[0][1]
+            try:
+                result = cursor.fetchall()
+                schema_name = result[0][1]
+                schema_status = result[0][2]
+                schema_creator = result[0][3]
+                schema_blocker = result[0][4]
+            except:
+                return {}
+
+        if schema_status == 'Blocked':
+            qry_user_blocker = f"""select * from public.user where id = {schema_blocker};"""
+            with self.connection.cursor() as cursor:
+                cursor.execute(qry_user_blocker)
+                result = cursor.fetchall()
+                user_blocker_name = result[0][1]
+        else:
+            schema_blocker = ' - '
+            user_blocker_name = ' - '
+
+
 
         qry_instances = f"""select * from instnc where schema_fk = {schema_id};"""
         with self.connection.cursor() as cursor:
@@ -704,7 +727,9 @@ class DbConnection:
                 "InputFlowConnector": {"BlockInstanceID": block_output_id, "FlowID": flow_output_id},
                 "OutputFlowConnector": {"BlockInstanceID": block_input_id, "FlowID": flow_input_id}}
             interconnections_list.append(interconnections_dict)
-        schema_dict = {"SchemaId": schema_id, "SchemaName": schema_name, "BlockInstanсes": instances_list,
+        schema_dict = {"SchemaId": schema_id, "SchemaName": schema_name, "SchemaStatus": schema_status,
+                       "SchemaCreator": schema_creator, "SchemaCreatorName": user_blocker_name,
+                       "SchemaBlocker": schema_blocker, "BlockInstanсes": instances_list,
                        "BlockInterconnections": interconnections_list}
         return schema_dict
 #
