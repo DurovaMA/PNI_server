@@ -587,6 +587,13 @@ class DbConnection:
             raise ModelProblems('Не удалось добавить модель!')
 
     def create_schema(self, title, instances, interconnections, user_id):
+        user_qry = f"""select username from public.user where id={user_id};"""
+        try:
+            with self.connection.cursor() as cursor:
+                cursor.execute(user_qry)
+                username = cursor.fetchall()[0][1]
+        except:
+            return -1
 
         id_schema = func_sql_insert.create_schema(title, user_id, self.connection)
 
@@ -643,7 +650,7 @@ class DbConnection:
         return schema_id
 
     def show_all_schemas(self):
-        qry_all_schemas = f"""select id, schema_name from schema;"""
+        qry_all_schemas = f"""select * from schema;"""
         with self.connection.cursor() as cursor:
             cursor.execute(qry_all_schemas)
             all_schemas = cursor.fetchall()
