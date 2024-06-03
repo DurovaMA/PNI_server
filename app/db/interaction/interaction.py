@@ -280,7 +280,7 @@ class DbConnection:
         default_params = vers[6]
         extra_params = vers[7]
         expressions = vers[8]
-        version_id = vers[11]
+        version_id = vers[10]
         UserID = vers[14]
         model_original = vers[15]
         vers_num = vers[16]
@@ -358,7 +358,7 @@ class DbConnection:
             default_params = vers[6]
             extra_params = vers[7]
             expressions = vers[8]
-            version_id = vers[11]
+            version_id = vers[10]
             UserID = vers[14]
             model_original = vers[15]
             vers_num = vers[16]
@@ -591,7 +591,7 @@ class DbConnection:
         try:
             with self.connection.cursor() as cursor:
                 cursor.execute(user_qry)
-                username = cursor.fetchall()[0][1]
+                username = cursor.fetchall()[0][0]
         except:
             return -1
 
@@ -626,8 +626,8 @@ class DbConnection:
         return id_schema
 
     def block_schema(self, user_id, schema_id):
-        qry = f"""update schema set user_blocker_fk={user_id}, status_block='Blocked'  
-                where id = {schema_id}  and status_block='Free' returning id;"""
+        qry = f"""update schema set user_blocker_fk={user_id}, is_blocked='True'  
+                where id = {schema_id}  and is_blocked='False' returning id;"""
         try:
             with self.connection.cursor() as cursor:
                 cursor.execute(qry)
@@ -638,7 +638,7 @@ class DbConnection:
         return schema_id
 
     def unblock_schema(self, user_id, schema_id):
-        qry = f"""update schema set user_blocker_fk={'Null'}, status_block='Free'  
+        qry = f"""update schema set user_blocker_fk={'Null'}, is_blocked='False'  
                 where id = {schema_id} and user_blocker_fk={user_id} returning id;"""
         try:
             with self.connection.cursor() as cursor:
@@ -659,9 +659,9 @@ class DbConnection:
             schemas_dict = {}
             schemas_dict["SchemaId"] = sch[0]
             schemas_dict["SchemaName"] = sch[1]
-            schemas_dict["SchemaStatus"] = sch[2]
-            schemas_dict["SchemaCreator"] = sch[3]
-            schemas_dict["SchemaBlocker"] = sch[4]
+            schemas_dict["SchemaCreator"] = sch[2]
+            schemas_dict["SchemaBlocker"] = sch[3]
+            schemas_dict["SchemaStatus"] = sch[4]
             schemas_list.append(schemas_dict)
         return schemas_list
 
@@ -673,13 +673,13 @@ class DbConnection:
             try:
                 result = cursor.fetchall()
                 schema_name = result[0][1]
-                schema_status = result[0][2]
-                schema_creator = result[0][3]
-                schema_blocker = result[0][4]
+                schema_creator = result[0][2]
+                schema_blocker = result[0][3]
+                schema_status = result[0][4]
             except:
                 return {}
 
-        if schema_status == 'Blocked':
+        if schema_status == 'True':
             qry_user_blocker = f"""select * from public.user where id = {schema_blocker};"""
             with self.connection.cursor() as cursor:
                 cursor.execute(qry_user_blocker)

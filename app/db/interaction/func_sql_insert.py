@@ -1,8 +1,8 @@
 def create_new_model(user_id, tit, description, full_json, directory, con):
     """Создает записи о новой модели. Принимает название, описание и
     соединение с БД возвращает идентификатор добавленной модели"""
-    qry_model = f"""INSERT    INTO    public.model_of_block    (title, description, status, status_block)    
-                VALUES('{tit}', '{description}', 'Developing'::types_status, 'Free')  RETURNING    id   ;"""
+    qry_model = f"""INSERT    INTO    public.model_of_block    (title, description, status, is_blocked)    
+                VALUES('{tit}', '{description}', 'Developing'::types_status, 'False')  RETURNING    id   ;"""
 
     try:
         with con.cursor() as cursor:
@@ -39,8 +39,8 @@ def create_new_version(user_id, model_id, note, con):
         cursor.execute(qry_version)
         version_id = cursor.fetchall()[0][0]
 
-        qry_model = f"""INSERT INTO public.model_of_block (title, description, status, status_block, model_id, version_fk)
-        (SELECT  title, description, 'Developing'::types_status, 'Free', {model_id}, {version_id} from model_of_block
+        qry_model = f"""INSERT INTO public.model_of_block (title, description, status, is_blocked, model_id, version_fk)
+        (SELECT  title, description, 'Developing'::types_status, 'False', {model_id}, {version_id} from model_of_block
         where id ={model_id}  limit 1 )  RETURNING  id ;"""
         cursor.execute(qry_model)
         model_pk = cursor.fetchall()[0][0]
@@ -293,7 +293,7 @@ def add_calc(mod_id, calc_list, con):
 
 
 def create_schema(name, user_id, con):
-    qry = f"""insert into schema (schema_name, user_creator_fk) values ('{name}', {user_id}) returning id;"""
+    qry = f"""insert into schema (schema_name, user_creator_fk, is_blocked) values ('{name}', {user_id}, 'False') returning id;"""
     with con.cursor() as cursor:
         cursor.execute(qry)
         result_sql = cursor.fetchall()
