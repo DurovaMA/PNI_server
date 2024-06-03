@@ -661,7 +661,7 @@ class DbConnection:
             schemas_dict["SchemaName"] = sch[1]
             schemas_dict["SchemaCreator"] = sch[2]
             schemas_dict["SchemaBlocker"] = sch[3]
-            schemas_dict["SchemaStatus"] = sch[4]
+            schemas_dict["isBlocked"] = sch[4]
             schemas_list.append(schemas_dict)
         return schemas_list
 
@@ -734,7 +734,7 @@ class DbConnection:
                 "InputFlowConnector": {"BlockInstanceID": block_output_id, "FlowID": flow_output_id},
                 "OutputFlowConnector": {"BlockInstanceID": block_input_id, "FlowID": flow_input_id}}
             interconnections_list.append(interconnections_dict)
-        schema_dict = {"SchemaId": schema_id, "SchemaName": schema_name, "SchemaStatus": schema_status,
+        schema_dict = {"SchemaId": schema_id, "SchemaName": schema_name, "isBlocked": schema_status,
                        "SchemaCreator": schema_creator, "SchemaCreatorName": user_blocker_name,
                        "SchemaBlocker": schema_blocker, "BlockInstanсes": instances_list,
                        "BlockInterconnections": interconnections_list}
