@@ -650,7 +650,8 @@ class DbConnection:
         return schema_id
 
     def show_all_schemas(self):
-        qry_all_schemas = f"""select * from schema;"""
+        qry_all_schemas = f"""select * from public."schema" s join public.user u1 on s.user_creator_fk =u1.id
+        left join public.user u2 on s.user_blocker_fk =u2.id ;"""
         with self.connection.cursor() as cursor:
             cursor.execute(qry_all_schemas)
             all_schemas = cursor.fetchall()
@@ -660,14 +661,18 @@ class DbConnection:
             schemas_dict["SchemaId"] = sch[0]
             schemas_dict["SchemaName"] = sch[1]
             schemas_dict["SchemaCreator"] = sch[2]
+            schemas_dict["SchemaCreatorName"] = sch[10]
             schemas_dict["SchemaBlocker"] = sch[3]
+            schemas_dict["SchemaBlockerName"] = sch[6]
             schemas_dict["isBlocked"] = sch[4]
             schemas_list.append(schemas_dict)
         return schemas_list
 
     #
     def show_schema(self, schema_id):
-        qry_schema = f"""select * from schema where id = {schema_id};"""
+        qry_schema = f"""select * from public."schema" s join public.user u1 on s.user_creator_fk =u1.id
+        left join public.user u2 on s.user_blocker_fk =u2.id 
+        where s.id = {schema_id};"""
         with self.connection.cursor() as cursor:
             cursor.execute(qry_schema)
             try:
@@ -676,18 +681,16 @@ class DbConnection:
                 schema_creator = result[0][2]
                 schema_blocker = result[0][3]
                 schema_status = result[0][4]
+                user_creator_name = result[0][6]
+                user_blocker_name = result[0][10]
             except:
                 return {}
 
-        if schema_status == 'True':
-            qry_user_blocker = f"""select * from public.user where id = {schema_blocker};"""
-            with self.connection.cursor() as cursor:
-                cursor.execute(qry_user_blocker)
-                result = cursor.fetchall()
-                user_blocker_name = result[0][1]
-        else:
-            schema_blocker = ' - '
-            user_blocker_name = ' - '
+        # if schema_status:
+        #     user_blocker_name = result[0][6]
+        # else:
+        #     #schema_blocker = None
+        #     user_blocker_name = None
 
 
 
@@ -735,9 +738,9 @@ class DbConnection:
                 "OutputFlowConnector": {"BlockInstanceID": block_input_id, "FlowID": flow_input_id}}
             interconnections_list.append(interconnections_dict)
         schema_dict = {"SchemaId": schema_id, "SchemaName": schema_name, "isBlocked": schema_status,
-                       "SchemaCreator": schema_creator, "SchemaCreatorName": user_blocker_name,
-                       "SchemaBlocker": schema_blocker, "BlockInstanсes": instances_list,
-                       "BlockInterconnections": interconnections_list}
+                       "SchemaCreator": schema_creator, "SchemaCreatorName": user_creator_name,
+                       "SchemaBlockerName": user_blocker_name,  "SchemaBlocker": schema_blocker,
+                       "BlockInstanсes": instances_list,   "BlockInterconnections": interconnections_list}
         return schema_dict
 #
 # if __name__ == '__main__':
