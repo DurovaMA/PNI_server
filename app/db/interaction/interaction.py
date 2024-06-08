@@ -734,8 +734,8 @@ class DbConnection:
             block_output_id, block_input_id, flow_output_id, flow_input_id = intercon[1], intercon[2], intercon[4], \
                 intercon[5]
             interconnections_dict = {
-                "InputFlowConnector": {"BlockInstanceID": block_output_id, "FlowID": flow_output_id},
-                "OutputFlowConnector": {"BlockInstanceID": block_input_id, "FlowID": flow_input_id}}
+                "InputFlowConnector": {"BlockInstanceID": block_input_id, "FlowID": flow_input_id},
+                "OutputFlowConnector": {"BlockInstanceID": block_output_id, "FlowID": flow_output_id}}
             interconnections_list.append(interconnections_dict)
         schema_dict = {"SchemaId": schema_id, "SchemaName": schema_name, "isBlocked": schema_status,
                        "SchemaCreator": schema_creator, "SchemaCreatorName": user_creator_name,
