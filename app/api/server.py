@@ -232,7 +232,7 @@ class Server:
     def get_user_id(self, user_login):
         try:
             user_id = self.db_connect.show_user_id(user_login)
-            return user_id, 200
+            return str(user_id), 200
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
     #
