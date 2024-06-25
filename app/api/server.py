@@ -38,6 +38,9 @@ class Server:
         self.app.add_url_rule('/block_schema/<int:user_id>/<int:schema_id>', view_func=self.block_schema)
 
         self.app.add_url_rule('/unblock_schema/<int:user_id>/<int:schema_id>', view_func=self.unblock_schema)
+
+        # получение ID пользователя по имени
+        self.app.add_url_rule('/get_user_id/<string:user_login>', view_func=self.get_user_id)
         # ПЕРЕПИСАТЬ инфо об экземпляре
         # self.app.add_url_rule('/get_instance', view_func=self.get_instance_info, methods=['POST'])
 
@@ -226,6 +229,12 @@ class Server:
         except ModelProblems as m_problem:
             abort(404, description=m_problem)
 
+    def get_user_id(self, user_login):
+        try:
+            user_id = self.db_connect.show_user_id(user_login)
+            return user_id, 200
+        except ModelProblems as m_problem:
+            abort(404, description=m_problem)
     #
     def show_schema_info(self, id_schema):
         try:

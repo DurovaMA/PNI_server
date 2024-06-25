@@ -668,6 +668,16 @@ class DbConnection:
             schemas_list.append(schemas_dict)
         return schemas_list
 
+    def show_user_id(self, user_login):
+        qry_user_id = f"""select id from public."user" where login='{user_login}';"""
+        try:
+            with self.connection.cursor() as cursor:
+                cursor.execute(qry_user_id)
+                user_id = str(cursor.fetchall()[0][0])
+                return user_id
+        except:
+            return -1
+
     #
     def show_schema(self, schema_id):
         qry_schema = f"""select * from public."schema" s join public.user u1 on s.user_creator_fk =u1.id
