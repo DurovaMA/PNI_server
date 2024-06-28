@@ -626,8 +626,8 @@ class DbConnection:
         return id_schema
 
     def block_schema(self, user_id, schema_id):
-        qry = f"""update schema set user_blocker_fk={user_id}, is_blocked='True'  
-                where id = {schema_id}  and is_blocked='False' returning id;"""
+        qry = f"""update schema set user_blocker_fk={user_id}, is_blocked='True'   
+                where id = {schema_id}  and (is_blocked='False' or user_blocker_fk={user_id})  returning id;"""
         try:
             with self.connection.cursor() as cursor:
                 cursor.execute(qry)
@@ -639,7 +639,7 @@ class DbConnection:
 
     def unblock_schema(self, user_id, schema_id):
         qry = f"""update schema set user_blocker_fk={'Null'}, is_blocked='False'  
-                where id = {schema_id} and user_blocker_fk={user_id} returning id;"""
+                where id = {schema_id} and (is_blocked='False' or user_blocker_fk={user_id}) returning id;"""
         try:
             with self.connection.cursor() as cursor:
                 cursor.execute(qry)

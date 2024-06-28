@@ -169,7 +169,7 @@ class Server:
         if model_id == -1:
             return f'Модель не может быть добавлена', 400
         else:
-            return f'Success added {model_id}', 201
+            return f'Успешно добавлена модель номер {model_id}', 201
 
     #
     def add_version_model(self, user_id):
