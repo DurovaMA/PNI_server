@@ -661,9 +661,9 @@ class DbConnection:
             schemas_dict["SchemaId"] = sch[0]
             schemas_dict["SchemaName"] = sch[1]
             schemas_dict["SchemaCreator"] = sch[2]
-            schemas_dict["SchemaCreatorName"] = sch[10]
+            schemas_dict["SchemaCreatorName"] = sch[6]
             schemas_dict["SchemaBlocker"] = sch[3]
-            schemas_dict["SchemaBlockerName"] = sch[6]
+            schemas_dict["SchemaBlockerName"] = sch[10]
             schemas_dict["isBlocked"] = sch[4]
             schemas_list.append(schemas_dict)
         return schemas_list

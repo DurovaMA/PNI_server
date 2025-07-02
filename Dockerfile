@@ -1,4 +1,4 @@
-FROM python:3.9-slim as build
+FROM python:3.9-slim AS build
 WORKDIR /app
 
 COPY requirements.txt /app/
@@ -10,7 +10,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 RUN pip install -r requirements.txt
 
-FROM python:3.9-slim as prod
+FROM python:3.9-slim AS prod
 
 RUN apt-get update && apt install -y libpq5
 COPY --from=build /opt/venv /opt/venv

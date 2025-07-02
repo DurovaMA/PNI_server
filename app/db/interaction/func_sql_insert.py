@@ -18,7 +18,8 @@ def create_new_model(user_id, tit, description, full_json, directory, con):
             version_id = cursor.fetchall()[0][0]
             qry_version_2 = f"""update model_of_block set version_fk={version_id}  where id = {model_id};"""
             cursor.execute(qry_version_2)
-    except:
+    except ValueError:
+        print(ValueError)
         delete_model(model_id, con)
         return -1
     return model_id

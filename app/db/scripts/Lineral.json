@@ -1,0 +1,46 @@
+{
+  "Title": "Сходящийся",
+  "Description": "Сходится линейно к заданному значению с заданной скоростью",
+  "InputFlows": [
+    {
+      "FlowVariableIndex": 1,
+      "FlowEnvironment": 3
+    }
+  ],
+  "OutputFlows": [
+    {
+      "FlowVariableIndex": 2,
+      "FlowEnvironment": 3
+    }
+  ],
+  "DefaultParameters": [
+    {
+      "Symbol": "Coef",
+      "Units": "-",
+      "Title": "Скорость сходимости 0 < Coef"
+    },
+    {
+      "Symbol": "Target",
+      "Units": "-",
+      "Title": "Целевое значение, к которому сходимся"
+    }
+  ],
+  "ExtraParameters": [],
+  "Expressions": [
+    {
+      "Expression": "Target + Coef * (X1 - Target)",
+      "DefinedVariable": "X2",
+      "Order": 1,
+      "NeededVariables": [
+        "Target",
+        "Coef",
+        "X1"
+      ],
+      "ExpressionTypeName": "Expression",
+      "ExpressionType": 0
+    }
+  ],
+  "ModelId": -1,
+  "Note": null,
+  "SaveDirId": 4
+}

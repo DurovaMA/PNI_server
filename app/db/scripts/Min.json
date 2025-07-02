@@ -1,0 +1,38 @@
+{
+  "Title": "Min",
+  "Description": "Выбирает минимальное значение со входов",
+  "InputFlows": [
+    {
+      "FlowVariableIndex": 1,
+      "FlowEnvironment": 3
+    },
+    {
+      "FlowVariableIndex": 2,
+      "FlowEnvironment": 3
+    }
+  ],
+  "OutputFlows": [
+    {
+      "FlowVariableIndex": 3,
+      "FlowEnvironment": 3
+    }
+  ],
+  "DefaultParameters": [],
+  "ExtraParameters": [],
+  "Expressions": [
+    {
+      "Expression": "min(X1,X2)",
+      "DefinedVariable": "X3",
+      "Order": 1,
+      "NeededVariables": [
+        "X1",
+        "X2"
+      ],
+      "ExpressionTypeName": "Expression",
+      "ExpressionType": 0
+    }
+  ],
+  "ModelId": -1,
+  "Note": null,
+  "SaveDirId": 4
+}

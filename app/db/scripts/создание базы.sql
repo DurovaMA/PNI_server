@@ -15,7 +15,6 @@ DROP TABLE public.position  CASCADE;
 DROP TABLE public.directory  CASCADE;
 DROP TABLE public.directory_model  CASCADE;
 DROP TABLE public.param_of_instnc CASCADE;
-DROP TABLE public.directory_model CASCADE;
 DROP TABLE public.templat CASCADE;
 DROP TABLE public.param_of_templat CASCADE;
 DROP TABLE public.user CASCADE;
@@ -27,6 +26,8 @@ DROP TYPE public."types_params";
 DROP TYPE public."types_status";
 DROP TYPE public."types_instance";
 DROP TYPE public."types_expression";
+DROP TYPE public."types_table";
+DROP TYPE public."types_block";
 
 --call inicialize_db();
 
@@ -71,6 +72,16 @@ CREATE TYPE public."types_block" AS ENUM (
 	'Free',
 	'Blocked');
 
+-- DROP TABLE public.user;
+CREATE TABLE public.user (
+    id serial NOT NULL,
+    username varchar NOT NULL,
+    login varchar NOT NULL,
+    passw varchar NOT NULL,
+    CONSTRAINT user_pk PRIMARY KEY (id)
+    );
+COMMENT ON TABLE public.user IS 'Пользователь';
+
 CREATE TABLE public.model_of_block (
 	id serial4 NOT NULL,
 	title varchar NOT NULL,
@@ -82,7 +93,8 @@ CREATE TABLE public.model_of_block (
 	extra_params _int4 NULL,
 	expressions _int4 NULL,
 	model_id int4  NULL,
-	status_block public."types_block" NOT NULL,
+	version_fk int4 NULL,
+	is_blocked boolean default FALSE,
 	CONSTRAINT model_of_block_pk PRIMARY KEY (id));
 COMMENT ON TABLE public.model_of_block IS 'Модель блока';
 
@@ -209,10 +221,12 @@ COMMENT ON TABLE public.position IS 'Топография экземпляра';
 CREATE TABLE public."schema" (
 	id serial4 NOT NULL,
 	schema_name varchar NULL,
-	status_block public."types_block" NULL,
-	user_fk int4 NULL,
+	user_creator_fk int4 NULL,
+	user_blocker_fk int4 NULL,
+	is_blocked boolean default FALSE,
 	CONSTRAINT schema_pk PRIMARY KEY (id),
-	CONSTRAINT schema_fk FOREIGN KEY (user_fk) REFERENCES public."user"(id) ON DELETE SET NULL ON UPDATE SET NULL
+	CONSTRAINT user_creator_fk FOREIGN KEY (user_creator_fk) REFERENCES public."user"(id) ON DELETE SET NULL ON UPDATE SET NULL,
+	CONSTRAINT user_blocker_fk FOREIGN KEY (user_blocker_fk) REFERENCES public."user"(id) ON DELETE SET NULL ON UPDATE SET NULL
 );
 COMMENT ON TABLE public.schema IS 'Схема с экземплярами блоков и связями';
 
@@ -262,15 +276,6 @@ CREATE TABLE public.param_of_templat (
 );
 COMMENT ON TABLE public.param_of_templat IS 'Значения параметров шаблона блока';
 
--- DROP TABLE public.user;
-CREATE TABLE public.user (
-    id serial NOT NULL,
-    username varchar NOT NULL,
-    login varchar NOT NULL,
-    passw varchar NOT NULL,
-    CONSTRAINT user_pk PRIMARY KEY (id)
-    );
-COMMENT ON TABLE public.user IS 'Пользователь';
 
 -- DROP TABLE public.version;
 CREATE TABLE public."version" (
@@ -351,7 +356,7 @@ COMMENT ON TABLE public.schema_flows IS 'Поток в схеме. Соедин�
 
 
 
-ALTER TABLE public.model_of_block ADD version_fk int NULL;
 ALTER TABLE public.model_of_block ADD CONSTRAINT model_of_block_un UNIQUE (model_id,version_fk);
 ALTER TABLE public.model_of_block ADD CONSTRAINT model_of_block_fk FOREIGN KEY (version_fk) REFERENCES public."version"(id) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE public.model_of_block ADD CONSTRAINT version_fk FOREIGN KEY (version_fk) REFERENCES public.version(id) ON DELETE CASCADE ON UPDATE CASCADE;
 

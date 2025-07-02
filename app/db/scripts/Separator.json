@@ -1,0 +1,47 @@
+{
+  "Title": "Разветвитель",
+  "Description": "Даёт значение на входе на всех выходах",
+  "InputFlows": [
+    {
+      "FlowVariableIndex": 1,
+      "FlowEnvironment": 3
+    }
+  ],
+  "OutputFlows": [
+    {
+      "FlowVariableIndex": 2,
+      "FlowEnvironment": 3
+    },
+    {
+      "FlowVariableIndex": 3,
+      "FlowEnvironment": 3
+    }
+  ],
+  "DefaultParameters": [],
+  "ExtraParameters": [],
+  "Expressions": [
+    {
+      "Expression": "X1",
+      "DefinedVariable": "X2",
+      "Order": 1,
+      "NeededVariables": [
+        "X1"
+      ],
+      "ExpressionTypeName": "Expression",
+      "ExpressionType": 0
+    },
+    {
+      "Expression": "X1",
+      "DefinedVariable": "X3",
+      "Order": 2,
+      "NeededVariables": [
+        "X1"
+      ],
+      "ExpressionTypeName": "Expression",
+      "ExpressionType": 0
+    }
+  ],
+  "ModelId": -1,
+  "Note": null,
+  "SaveDirId": 4
+}

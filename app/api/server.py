@@ -164,7 +164,7 @@ class Server:
             extra_params=model_info['ExtraParameters'],
             calculations=model_info['Expressions'],
             full_json=js,
-            directory=model_info['DirectoryId']
+            directory=model_info['SaveDirId']
         )
         if model_id == -1:
             return f'Модель не может быть добавлена', 400

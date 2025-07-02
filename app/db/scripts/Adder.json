@@ -1,0 +1,40 @@
+{
+  "Title": "Увеличитель",
+  "Description": "Увеличивает величину на заданное значение",
+  "InputFlows": [
+    {
+      "FlowVariableIndex": 1,
+      "FlowEnvironment": 3
+    }
+  ],
+  "OutputFlows": [
+    {
+      "FlowVariableIndex": 2,
+      "FlowEnvironment": 3
+    }
+  ],
+  "DefaultParameters": [
+    {
+      "Symbol": "Add",
+      "Units": "-",
+      "Title": "Число к добавлению к парамтеру потока"
+    }
+  ],
+  "ExtraParameters": [],
+  "Expressions": [
+    {
+      "Expression": "X1 + Add",
+      "DefinedVariable": "X2",
+      "Order": 1,
+      "NeededVariables": [
+        "X1",
+        "Add"
+      ],
+      "ExpressionTypeName": "Expression",
+      "ExpressionType": 0
+    }
+  ],
+  "ModelId": -1,
+  "Note": null,
+  "SaveDirId": 4
+}

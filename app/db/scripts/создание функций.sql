@@ -1,5 +1,5 @@
 ----Представление для вывода всех переменных, доступных потоку, с названием
-create view param_of_flow as
+create or replace view param_of_flow as
 select mob.id as model, flow.flow_type,
 p.id as p_id, pog.id as pog_id,flow.id flow,
 p.symbol || flow.param_index  as param_name,
@@ -14,7 +14,7 @@ join parametr p on pog.param_fk =p.id ;
 --drop view param_of_flow;
 
 --представление для отображения данных о выражении: определяемая переменная
-create view show_calc_defined as
+create or replace view show_calc_defined as
 select gp.model_fk model, pom.id , c.id c_id, c.order_calc , c.expression_calc ,  pom.param_name, pom.param_type, p.id p_id, c.type_calc
 from group_par gp  join calculation c on gp.id =c.defined_param_fk
 join param_of_group pog on pog.group_fk =gp.id
@@ -24,7 +24,7 @@ join parametr p on pom.param_fk =p.id ;
 --drop view show_calc_defined;
 
 --представление для отображения данных о выражении: требуемые переменные
-create view show_calc_required as
+create or replace view show_calc_required as
 select gp.model_fk model, pom.id , c.id c_id, c.order_calc , c.expression_calc ,  pom.param_name, pom.param_type, p.id p_id, c.type_calc
 from group_par gp  join calculation c on gp.id =c.required_params_fk
 join param_of_group pog on pog.group_fk =gp.id
@@ -57,7 +57,7 @@ AS SELECT pom.model_fk AS model,
   --drop view param_of_flow_in_model;
 
  --представление: данные о параметрах для вывода в json
-create view show_parameters_info as
+create or replace view show_parameters_info as
 select  distinct pom.id, pom.param_name, p.title , p.units
 from param_of_model pom
 join all_inclusions ai on ai.param_of_model_fk =pom.id
@@ -85,3 +85,29 @@ $function$
 ;
 COMMENT ON FUNCTION public.return_avail_env(int4) IS
 'Возвращает таблицу доступных параметров для среды по ее номеру';
+
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE OR REPLACE FUNCTION hash_update_tg() RETURNS trigger AS $$
+declare
+v text;
+BEGIN
+    IF tg_op = 'INSERT' OR tg_op = 'UPDATE' then
+    	v = NEW.x::text || NEW.y::text || NEW.color::text;
+        NEW.hash_sum = digest(v, 'sha256');
+       	IF NEW.hash_sum=OLD.hash_sum then
+       		RAISE NOTICE 'Хэш-сумма не изменилась, перезаписи не требуется';
+       	ELSE
+       		RAISE NOTICE 'Хэш-сумма изменилась, создана новая версия записи';
+       		RETURN NEW;
+       	END IF;
+
+
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER position_hash_update
+BEFORE INSERT OR UPDATE ON position
+FOR EACH ROW EXECUTE PROCEDURE hash_update_tg();
